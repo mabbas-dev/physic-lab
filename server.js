@@ -81,14 +81,16 @@ app.get('/api/groups', (req, res) => {
     res.json({ success: true, groups: db.groups, nextGroupId: db.nextGroupId });
 });
 
-// Check if a reg no already exists (Public API)
+// Check if a reg no already exists (Public & Admin API)
 app.get('/api/check-reg/:regNo', (req, res) => {
     const db = readDB();
     const regNo = req.params.regNo.trim().toUpperCase();
+    const excludeGroupId = req.query.excludeGroupId ? parseInt(req.query.excludeGroupId) : null;
     
     for (const group of db.groups) {
+        if (excludeGroupId && group.id === excludeGroupId) continue;
         for (const member of group.members) {
-            if (member.regNo.toUpperCase() === regNo) {
+            if (member.regNo && member.regNo.toUpperCase() === regNo) {
                 return res.json({
                     exists: true,
                     groupName: group.groupName,
@@ -240,25 +242,69 @@ app.post('/api/admin/db', verifyAdminAuth, (req, res) => {
     }
 });
 
-// Admin: Add Group (Bypasses deadline)
+// Admin: Add Group (Bypasses deadline, validates duplicates)
 app.post('/api/admin/group', verifyAdminAuth, (req, res) => {
     const { type, groupName, members } = req.body;
     if (!members || !Array.isArray(members) || members.length === 0) {
-        return res.status(400).json({ success: false, message: 'Members list is required.' });
+        return res.status(400).json({ success: false, message: 'At least 1 member is required.' });
     }
 
+    if (type === 'team' && members.length > 5) {
+        return res.status(400).json({ success: false, message: 'A team can have a maximum of 5 members.' });
+    }
+
+    // Validate fields and trim
+    for (const m of members) {
+        if (!m.name || !m.name.trim()) {
+            return res.status(400).json({ success: false, message: 'Full Name is required for all members.' });
+        }
+        if (!m.regNo || !m.regNo.trim()) {
+            return res.status(400).json({ success: false, message: 'Registration Number is required for all members.' });
+        }
+        if (!m.whatsapp || !m.whatsapp.trim()) {
+            return res.status(400).json({ success: false, message: 'WhatsApp Number is required for all members.' });
+        }
+        m.name = m.name.trim();
+        m.regNo = m.regNo.trim().toUpperCase();
+        m.whatsapp = m.whatsapp.trim();
+    }
+
+    // Check duplicate within the submission
+    const regNos = members.map(m => m.regNo);
+    const uniqueRegNos = new Set(regNos);
+    if (uniqueRegNos.size !== regNos.length) {
+        return res.status(400).json({ 
+            success: false, 
+            message: 'Duplicate registration numbers detected in this group submission.' 
+        });
+    }
+
+    // Check against ALL existing groups in DB
     const db = readDB();
+    for (const member of members) {
+        for (const existingGroup of db.groups) {
+            for (const existingMember of existingGroup.members) {
+                if (existingMember.regNo && existingMember.regNo.toUpperCase() === member.regNo) {
+                    return res.status(400).json({
+                        success: false,
+                        message: `Student with Reg No. "${member.regNo}" (${member.name}) is already registered in ${existingGroup.groupName}. Cannot add duplicate student!`
+                    });
+                }
+            }
+        }
+    }
+
     const groupId = db.nextGroupId || (db.groups.length + 1);
-    const assignedName = groupName || `G-${groupId < 10 ? '0' + groupId : groupId}`;
+    const assignedName = groupName ? groupName.trim() : `G-${groupId < 10 ? '0' + groupId : groupId}`;
 
     const newGroup = {
         id: groupId,
         groupName: assignedName,
         type: type || (members.length > 1 ? 'team' : 'individual'),
         members: members.map((m, index) => ({
-            name: m.name.trim(),
-            regNo: m.regNo.trim().toUpperCase(),
-            whatsapp: m.whatsapp.trim(),
+            name: m.name,
+            regNo: m.regNo,
+            whatsapp: m.whatsapp,
             role: m.role || (index === 0 && members.length > 1 ? 'Team Leader' : (members.length === 1 ? 'Individual' : 'Member'))
         })),
         registeredAt: new Date().toISOString()
@@ -271,7 +317,7 @@ app.post('/api/admin/group', verifyAdminAuth, (req, res) => {
     res.json({ success: true, message: `${assignedName} created successfully!`, group: newGroup });
 });
 
-// Admin: Edit Group
+// Admin: Edit Group (Validates duplicates across other groups)
 app.put('/api/admin/group/:id', verifyAdminAuth, (req, res) => {
     const groupId = parseInt(req.params.id);
     const { groupName, type, members } = req.body;
@@ -283,19 +329,119 @@ app.put('/api/admin/group/:id', verifyAdminAuth, (req, res) => {
         return res.status(404).json({ success: false, message: 'Group not found.' });
     }
 
-    if (groupName) group.groupName = groupName;
-    if (type) group.type = type;
     if (members && Array.isArray(members)) {
-        group.members = members.map(m => ({
-            name: m.name.trim(),
-            regNo: m.regNo.trim().toUpperCase(),
-            whatsapp: m.whatsapp.trim(),
-            role: m.role || 'Member'
+        if (members.length === 0) {
+            return res.status(400).json({ success: false, message: 'At least 1 member is required.' });
+        }
+        if (type === 'team' && members.length > 5) {
+            return res.status(400).json({ success: false, message: 'A team can have a maximum of 5 members.' });
+        }
+
+        // Validate fields and trim
+        for (const m of members) {
+            if (!m.name || !m.name.trim()) {
+                return res.status(400).json({ success: false, message: 'Full Name is required for all members.' });
+            }
+            if (!m.regNo || !m.regNo.trim()) {
+                return res.status(400).json({ success: false, message: 'Registration Number is required for all members.' });
+            }
+            if (!m.whatsapp || !m.whatsapp.trim()) {
+                return res.status(400).json({ success: false, message: 'WhatsApp Number is required for all members.' });
+            }
+            m.name = m.name.trim();
+            m.regNo = m.regNo.trim().toUpperCase();
+            m.whatsapp = m.whatsapp.trim();
+        }
+
+        // Check duplicate within the submission
+        const regNos = members.map(m => m.regNo);
+        const uniqueRegNos = new Set(regNos);
+        if (uniqueRegNos.size !== regNos.length) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Duplicate registration numbers detected in this group submission.' 
+            });
+        }
+
+        // Check against OTHER groups in DB (exclude this group itself)
+        for (const member of members) {
+            for (const otherGroup of db.groups) {
+                if (otherGroup.id === groupId) continue;
+                for (const existingMember of otherGroup.members) {
+                    if (existingMember.regNo && existingMember.regNo.toUpperCase() === member.regNo) {
+                        return res.status(400).json({
+                            success: false,
+                            message: `Student with Reg No. "${member.regNo}" (${member.name}) is already registered in ${otherGroup.groupName}. Cannot add duplicate student across groups!`
+                        });
+                    }
+                }
+            }
+        }
+
+        group.members = members.map((m, index) => ({
+            name: m.name,
+            regNo: m.regNo,
+            whatsapp: m.whatsapp,
+            role: m.role || (index === 0 && members.length > 1 ? 'Team Leader' : (members.length === 1 ? 'Individual' : 'Member'))
         }));
     }
 
+    if (groupName) group.groupName = groupName.trim();
+    if (type) group.type = type;
+
     writeDB(db);
     res.json({ success: true, message: `${group.groupName} updated successfully!`, group });
+});
+
+// Admin: Add single member to existing group
+app.post('/api/admin/group/:id/member', verifyAdminAuth, (req, res) => {
+    const groupId = parseInt(req.params.id);
+    const { name, regNo, whatsapp, role } = req.body;
+
+    if (!name || !name.trim() || !regNo || !regNo.trim() || !whatsapp || !whatsapp.trim()) {
+        return res.status(400).json({ success: false, message: 'Name, Reg No, and WhatsApp No are required.' });
+    }
+
+    const cleanRegNo = regNo.trim().toUpperCase();
+    const cleanName = name.trim();
+    const cleanWhatsapp = whatsapp.trim();
+
+    const db = readDB();
+    const group = db.groups.find(g => g.id === groupId);
+    if (!group) {
+        return res.status(404).json({ success: false, message: 'Group not found.' });
+    }
+
+    if (group.members.length >= 5) {
+        return res.status(400).json({ success: false, message: 'This group already has the maximum 5 members.' });
+    }
+
+    // Check if student exists in any group (including this one)
+    for (const g of db.groups) {
+        for (const m of g.members) {
+            if (m.regNo && m.regNo.toUpperCase() === cleanRegNo) {
+                return res.status(400).json({
+                    success: false,
+                    message: `Student with Reg No. "${cleanRegNo}" (${m.name}) is already registered in ${g.groupName}. Cannot add duplicate!`
+                });
+            }
+        }
+    }
+
+    const newMember = {
+        name: cleanName,
+        regNo: cleanRegNo,
+        whatsapp: cleanWhatsapp,
+        role: role || (group.members.length === 0 ? 'Team Leader' : 'Member')
+    };
+
+    group.members.push(newMember);
+    if (group.members.length > 1) {
+        group.type = 'team';
+    }
+    writeDB(db);
+
+    res.json({ success: true, message: `${cleanName} added to ${group.groupName} successfully!`, group });
 });
 
 // Admin: Delete Group

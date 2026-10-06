@@ -599,20 +599,31 @@ function generateAndDownloadPDF() {
 
     document.getElementById('pdfTotalLine').innerHTML = `<strong>Total: ${totalStudents} students in ${currentGroups.length} groups</strong>`;
 
+    const container = document.getElementById('pdfReportContainer');
     const element = document.getElementById('pdfPage');
     
+    // Temporarily bring into viewport under SweetAlert overlay so html2canvas renders perfectly
+    container.classList.add('pdf-rendering');
+
     const opt = {
-        margin: [10, 10, 10, 10],
+        margin: [8, 8, 8, 8],
         filename: `Physics_Lab_Groups_Fall_2026_${new Date().toISOString().slice(0, 10)}.pdf`,
         image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true, logging: false },
+        html2canvas: { 
+            scale: 2, 
+            useCORS: true, 
+            logging: false,
+            scrollX: 0,
+            scrollY: 0,
+            backgroundColor: '#ffffff'
+        },
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
     };
 
     // Show loading toast
     Swal.fire({
-        title: 'Generating PDF...',
-        text: 'Please wait while we prepare your document.',
+        title: 'Generating Official PDF...',
+        text: 'Preparing official departmental format, please wait...',
         allowOutsideClick: false,
         background: '#1a1f35',
         color: '#f1f5f9',
@@ -622,6 +633,7 @@ function generateAndDownloadPDF() {
     });
 
     html2pdf().set(opt).from(element).save().then(() => {
+        container.classList.remove('pdf-rendering');
         Swal.fire({
             icon: 'success',
             title: 'PDF Downloaded!',
@@ -632,6 +644,7 @@ function generateAndDownloadPDF() {
             color: '#f1f5f9',
         });
     }).catch(err => {
+        container.classList.remove('pdf-rendering');
         console.error('PDF generation error:', err);
         Swal.fire({
             icon: 'error',

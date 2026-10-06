@@ -447,10 +447,11 @@
     border: 1px solid rgba(124, 58, 237, 0.3);
     border-radius: 18px;
     padding: 28px;
-    max-width: 650px;
+    max-width: 680px;
     width: 100%;
     max-height: 90vh;
     overflow-y: auto;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
 }
 
 .admin-modal-header {
@@ -474,6 +475,11 @@
     color: #94a3b8;
     font-size: 1.2rem;
     cursor: pointer;
+    transition: color 0.2s;
+}
+
+.admin-modal-close:hover {
+    color: #ef4444;
 }
 
 .modal-field-row {
@@ -493,6 +499,12 @@
     color: white;
     font-size: 0.9rem;
     outline: none;
+    transition: border-color 0.2s;
+}
+
+.modal-field-row select:focus,
+.modal-field-row input:focus {
+    border-color: #a78bfa;
 }
 
 .modal-members-header {
@@ -502,23 +514,183 @@
     margin-bottom: 14px;
 }
 
-.modal-member-row {
-    display: grid;
-    grid-template-columns: 1.8fr 1.5fr 1.5fr 1.2fr 40px;
-    gap: 8px;
+.modal-members-header h4 {
+    font-size: 1rem;
+    color: #f1f5f9;
+    display: flex;
     align-items: center;
-    margin-bottom: 10px;
+    gap: 8px;
 }
 
-.modal-member-row input,
-.modal-member-row select {
-    padding: 8px 10px;
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+.modal-members-container {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    max-height: 52vh;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+
+/* Admin Member Card (Rich UI matching public registration) */
+.admin-member-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    padding: 16px;
+    transition: border-color 0.2s, background 0.2s;
+}
+
+.admin-member-card:hover {
+    border-color: rgba(124, 58, 237, 0.3);
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.admin-member-card.has-error {
+    border-color: rgba(239, 68, 68, 0.5);
+    background: rgba(239, 68, 68, 0.04);
+}
+
+.admin-member-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.admin-member-role-badge {
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 4px 10px;
     border-radius: 6px;
-    color: white;
-    font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.admin-member-role-badge.leader {
+    background: rgba(245, 158, 11, 0.15);
+    color: #f59e0b;
+    border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.admin-member-role-badge.member {
+    background: rgba(56, 189, 248, 0.15);
+    color: #38bdf8;
+    border: 1px solid rgba(56, 189, 248, 0.3);
+}
+
+.admin-member-role-badge.individual {
+    background: rgba(16, 185, 129, 0.15);
+    color: #10b981;
+    border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.admin-card-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.admin-card-role-select {
+    padding: 4px 8px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 6px;
+    color: #f1f5f9;
+    font-size: 0.8rem;
     outline: none;
+    cursor: pointer;
+}
+
+.admin-card-remove-btn {
+    background: rgba(239, 68, 68, 0.15);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    color: #ef4444;
+    border-radius: 6px;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 0.85rem;
+    transition: all 0.2s;
+}
+
+.admin-card-remove-btn:hover {
+    background: #ef4444;
+    color: white;
+}
+
+.admin-member-grid {
+    display: grid;
+    grid-template-columns: 1.2fr 1fr 1fr;
+    gap: 12px;
+}
+
+@media (max-width: 600px) {
+    .admin-member-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.admin-input-col {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.admin-input-col label {
+    font-size: 0.78rem;
+    color: #94a3b8;
+    font-weight: 500;
+}
+
+.admin-input-col input {
+    padding: 9px 12px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 8px;
+    color: white;
+    font-size: 0.88rem;
+    outline: none;
+    transition: all 0.2s;
+}
+
+.admin-input-col input:focus {
+    border-color: #a78bfa;
+    box-shadow: 0 0 0 2px rgba(167, 139, 250, 0.2);
+}
+
+.admin-input-col input.error {
+    border-color: #ef4444 !important;
+    background: rgba(239, 68, 68, 0.08) !important;
+    box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2) !important;
+}
+
+.admin-input-col input.valid {
+    border-color: #10b981 !important;
+    background: rgba(16, 185, 129, 0.05) !important;
+}
+
+.field-error {
+    display: none;
+    font-size: 0.75rem;
+    color: #ef4444;
+    margin-top: 3px;
+    line-height: 1.3;
+}
+
+.field-error.visible {
+    display: block;
+}
+
+.field-error.success {
+    color: #10b981;
 }
 
 .admin-modal-footer {
@@ -528,4 +700,49 @@
     margin-top: 24px;
     padding-top: 16px;
     border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.admin-btn-accent-sm {
+    background: rgba(124, 58, 237, 0.2);
+    border: 1px solid rgba(167, 139, 250, 0.4);
+    color: #c084fc;
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.admin-btn-accent-sm:hover {
+    background: #7c3aed;
+    color: white;
+}
+
+.badge-full {
+    background: rgba(255, 255, 255, 0.05);
+    color: #64748b;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+/* PDF Offscreen and Rendering Styles */
+.pdf-offscreen {
+    position: absolute;
+    left: -9999px;
+    top: -9999px;
+    width: 210mm;
+}
+
+.pdf-offscreen.pdf-rendering {
+    position: fixed !important;
+    left: 0 !important;
+    top: 0 !important;
+    z-index: 1050 !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    background: #ffffff !important;
 }

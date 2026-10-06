@@ -137,7 +137,7 @@
                 </div>
 
                 <div class="modal-members-header">
-                    <h4>Members List</h4>
+                    <h4>Members List <span id="modalMemberCountBadge" style="font-size:0.8rem;color:#a78bfa;font-weight:600;background:rgba(124,58,237,0.2);padding:2px 8px;border-radius:10px;">0/5</span></h4>
                     <button type="button" class="admin-btn-ghost-sm" id="modalAddMemberBtn" onclick="addModalMemberRow()">+ Add Member</button>
                 </div>
 
@@ -147,7 +147,49 @@
 
                 <div class="admin-modal-footer">
                     <button type="button" class="admin-btn-ghost" onclick="closeGroupModal()">Cancel</button>
-                    <button type="submit" class="admin-btn-primary">Save Group</button>
+                    <button type="submit" class="admin-btn-primary" id="saveGroupBtn">Save Group</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Quick Add Single Student to Group Modal -->
+    <div class="admin-modal-overlay hidden" id="quickAddMemberOverlay">
+        <div class="admin-modal-card" style="max-width: 480px;">
+            <div class="admin-modal-header">
+                <h3 id="quickAddModalTitle">Add Student to Group</h3>
+                <button type="button" class="admin-modal-close" onclick="closeQuickAddMemberModal()">&#10005;</button>
+            </div>
+            <form id="quickAddMemberForm" onsubmit="handleQuickAddMemberSubmit(event)">
+                <input type="hidden" id="quickAddGroupId">
+                <div style="display:flex; flex-direction:column; gap:14px; margin-bottom:18px;">
+                    <div class="admin-input-col">
+                        <label for="quickAddName">Full Name *</label>
+                        <input type="text" id="quickAddName" placeholder="e.g. Muhammad Ahmad" required autocomplete="off">
+                        <span class="field-error" id="quickAddNameError"></span>
+                    </div>
+                    <div class="admin-input-col">
+                        <label for="quickAddReg">Registration No. *</label>
+                        <input type="text" id="quickAddReg" placeholder="e.g. 2024-BSSE-001" required autocomplete="off" oninput="checkQuickAddReg(this)">
+                        <span class="field-error" id="quickAddRegError"></span>
+                    </div>
+                    <div class="admin-input-col">
+                        <label for="quickAddWhatsapp">WhatsApp No. *</label>
+                        <input type="text" id="quickAddWhatsapp" placeholder="e.g. 03XX-XXXXXXX" required autocomplete="off">
+                        <span class="field-error" id="quickAddWhatsappError"></span>
+                    </div>
+                    <div class="admin-input-col">
+                        <label for="quickAddRole">Role</label>
+                        <select id="quickAddRole" style="padding:9px 12px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:8px;color:white;font-size:0.88rem;outline:none;">
+                            <option value="Member" selected>Member</option>
+                            <option value="Team Leader">Team Leader</option>
+                            <option value="Individual">Individual</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="admin-modal-footer">
+                    <button type="button" class="admin-btn-ghost" onclick="closeQuickAddMemberModal()">Cancel</button>
+                    <button type="submit" class="admin-btn-primary" id="quickAddSubmitBtn">Add Student</button>
                 </div>
             </form>
         </div>

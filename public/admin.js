@@ -135,13 +135,18 @@ function renderAdminGroups() {
     groups.forEach(group => {
         const card = document.createElement('div');
         card.className = 'admin-group-card';
+        const members = group.members || [];
+        const isFull = members.length >= 5;
 
         let rowsHtml = '';
-        (group.members || []).forEach(m => {
+        members.forEach(m => {
+            const isLeader = m.role === 'Team Leader';
             rowsHtml += `
                 <tr>
-                    <td style="font-weight:600;color:${m.role === 'Team Leader' ? '#fbbf24' : '#f1f5f9'}">${escapeHtml(m.name)}</td>
-                    <td><span class="member-role-tag ${m.role === 'Team Leader' ? 'leader-tag' : ''}">${m.role || 'Member'}</span></td>
+                    <td style="font-weight:600;color:${isLeader ? '#fbbf24' : '#f1f5f9'}">
+                        ${isLeader ? '👑 ' : ''}${escapeHtml(m.name)}
+                    </td>
+                    <td><span class="member-role-tag ${isLeader ? 'leader-tag' : ''}">${m.role || 'Member'}</span></td>
                     <td style="font-family:monospace;color:#94a3b8;">${escapeHtml(m.regNo)}</td>
                     <td style="color:#94a3b8;">${escapeHtml(m.whatsapp)}</td>
                 </tr>
@@ -153,8 +158,10 @@ function renderAdminGroups() {
                 <div class="admin-group-title">
                     <span>${group.groupName}</span>
                     <span class="group-type-badge ${group.type === 'team' ? 'team-badge' : 'individual-badge'}">${group.type}</span>
+                    <span style="font-size:0.78rem;color:#94a3b8;background:rgba(255,255,255,0.06);padding:2px 8px;border-radius:10px;">${members.length}/5 members</span>
                 </div>
                 <div class="admin-group-actions">
+                    ${isFull ? '<span class="badge-full">Full (5/5)</span>' : `<button class="admin-btn-accent-sm" onclick="openQuickAddMember(${group.id}, '${escapeHtml(group.groupName)}')">+ Add Student</button>`}
                     <button class="admin-btn-ghost-sm" onclick="openEditGroupModal(${group.id})">Edit</button>
                     <button class="admin-btn-danger" style="padding:6px 12px;font-size:0.8rem;" onclick="confirmDeleteGroup(${group.id})">Delete</button>
                 </div>
@@ -265,7 +272,11 @@ function downloadJsonFile() {
     downloadAnchor.remove();
 }
 
-// ---- Group Modals ----
+// ============================================
+// ADD / EDIT GROUP MODAL (WITH DUPLICATE CHECK)
+// ============================================
+let checkAdminRegTimeout = null;
+
 function openAddGroupModal() {
     editingGroupId = null;
     document.getElementById('modalTitle').textContent = 'Add New Group (Admin)';
@@ -279,6 +290,7 @@ function openAddGroupModal() {
     addModalMemberRow('Team Leader');
     addModalMemberRow('Member');
 
+    updateModalMembersHeader();
     document.getElementById('groupModalOverlay').classList.remove('hidden');
 }
 
@@ -299,65 +311,262 @@ function openEditGroupModal(id) {
         addModalMemberRow(m.role, m.name, m.regNo, m.whatsapp);
     });
 
+    updateModalMembersHeader();
     document.getElementById('groupModalOverlay').classList.remove('hidden');
 }
 
 function closeGroupModal() {
     document.getElementById('groupModalOverlay').classList.add('hidden');
+    editingGroupId = null;
 }
 
 function handleModalTypeChange() {
     const type = document.getElementById('modalGroupType').value;
     const container = document.getElementById('modalMembersContainer');
-    const rows = container.querySelectorAll('.modal-member-row');
-    if (type === 'individual' && rows.length > 1) {
-        // Keep only 1
-        for (let i = 1; i < rows.length; i++) rows[i].remove();
+    const cards = container.querySelectorAll('.admin-member-card');
+    if (type === 'individual' && cards.length > 1) {
+        for (let i = 1; i < cards.length; i++) cards[i].remove();
+        const firstRoleSelect = cards[0].querySelector('.admin-card-role-select');
+        if (firstRoleSelect) firstRoleSelect.value = 'Individual';
+        updateModalCardHeader(cards[0]);
     }
+    updateModalMembersHeader();
 }
 
 function addModalMemberRow(role = 'Member', name = '', regNo = '', whatsapp = '') {
     const container = document.getElementById('modalMembersContainer');
-    const row = document.createElement('div');
-    row.className = 'modal-member-row';
+    const currentCards = container.querySelectorAll('.admin-member-card');
+    
+    if (currentCards.length >= 5) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Maximum Reached',
+            text: 'A group can have a maximum of 5 members.',
+            background: '#1a1f35',
+            color: '#f1f5f9'
+        });
+        return;
+    }
 
-    row.innerHTML = `
-        <input type="text" placeholder="Full Name" value="${escapeHtml(name)}" required>
-        <input type="text" placeholder="Reg No." value="${escapeHtml(regNo)}" required>
-        <input type="text" placeholder="WhatsApp No." value="${escapeHtml(whatsapp)}" required>
-        <select>
-            <option value="Team Leader" ${role === 'Team Leader' ? 'selected' : ''}>Team Leader</option>
-            <option value="Member" ${role === 'Member' ? 'selected' : ''}>Member</option>
-            <option value="Individual" ${role === 'Individual' ? 'selected' : ''}>Individual</option>
-        </select>
-        <button type="button" class="remove-member-btn" onclick="this.closest('.modal-member-row').remove()">✕</button>
+    const card = document.createElement('div');
+    card.className = 'admin-member-card';
+
+    const isLeader = role === 'Team Leader';
+    const isIndiv = role === 'Individual';
+    const badgeClass = isLeader ? 'leader' : (isIndiv ? 'individual' : 'member');
+    const badgeText = isLeader ? '👑 Team Leader' : (isIndiv ? 'Individual' : 'Member');
+
+    card.innerHTML = `
+        <div class="admin-member-card-header">
+            <span class="admin-member-role-badge ${badgeClass}">${badgeText}</span>
+            <div class="admin-card-actions">
+                <select class="admin-card-role-select" onchange="handleCardRoleChange(this)">
+                    <option value="Team Leader" ${isLeader ? 'selected' : ''}>Team Leader</option>
+                    <option value="Member" ${role === 'Member' ? 'selected' : ''}>Member</option>
+                    <option value="Individual" ${isIndiv ? 'selected' : ''}>Individual</option>
+                </select>
+                <button type="button" class="admin-card-remove-btn" onclick="removeModalMember(this)" title="Remove member">&#10005;</button>
+            </div>
+        </div>
+        <div class="admin-member-grid">
+            <div class="admin-input-col">
+                <label>Student Full Name *</label>
+                <input type="text" name="name" placeholder="e.g. Muhammad Ahmad" value="${escapeHtml(name)}" required autocomplete="off">
+                <span class="field-error name-error"></span>
+            </div>
+            <div class="admin-input-col">
+                <label>Registration No. *</label>
+                <input type="text" name="regNo" placeholder="e.g. 2024-BSSE-001" value="${escapeHtml(regNo)}" required autocomplete="off" oninput="checkAdminRegNo(this)">
+                <span class="field-error reg-error"></span>
+            </div>
+            <div class="admin-input-col">
+                <label>WhatsApp No. *</label>
+                <input type="text" name="whatsapp" placeholder="e.g. 03XX-XXXXXXX" value="${escapeHtml(whatsapp)}" required autocomplete="off">
+                <span class="field-error whatsapp-error"></span>
+            </div>
+        </div>
     `;
-    container.appendChild(row);
+
+    container.appendChild(card);
+    updateModalMembersHeader();
 }
 
+function removeModalMember(btn) {
+    const container = document.getElementById('modalMembersContainer');
+    const cards = container.querySelectorAll('.admin-member-card');
+    if (cards.length <= 1) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Cannot Remove',
+            text: 'A group must contain at least 1 member.',
+            background: '#1a1f35',
+            color: '#f1f5f9'
+        });
+        return;
+    }
+    const card = btn.closest('.admin-member-card');
+    card.remove();
+    updateModalMembersHeader();
+}
+
+function handleCardRoleChange(select) {
+    const card = select.closest('.admin-member-card');
+    updateModalCardHeader(card);
+}
+
+function updateModalCardHeader(card) {
+    const role = card.querySelector('.admin-card-role-select').value;
+    const badge = card.querySelector('.admin-member-role-badge');
+    const isLeader = role === 'Team Leader';
+    const isIndiv = role === 'Individual';
+
+    badge.className = `admin-member-role-badge ${isLeader ? 'leader' : (isIndiv ? 'individual' : 'member')}`;
+    badge.textContent = isLeader ? '👑 Team Leader' : (isIndiv ? 'Individual' : 'Member');
+}
+
+function updateModalMembersHeader() {
+    const container = document.getElementById('modalMembersContainer');
+    const cards = container.querySelectorAll('.admin-member-card');
+    const count = cards.length;
+    const badge = document.getElementById('modalMemberCountBadge');
+    if (badge) badge.textContent = `${count}/5`;
+
+    const addBtn = document.getElementById('modalAddMemberBtn');
+    if (addBtn) {
+        addBtn.disabled = count >= 5;
+        addBtn.style.opacity = count >= 5 ? '0.5' : '1';
+    }
+}
+
+// Real-time Reg No verification inside Admin Add/Edit Modal
+function checkAdminRegNo(input) {
+    clearTimeout(checkAdminRegTimeout);
+    const regNo = input.value.trim().toUpperCase();
+    const card = input.closest('.admin-member-card');
+    const errorEl = card.querySelector('.reg-error');
+
+    if (!regNo) {
+        input.classList.remove('error', 'valid');
+        card.classList.remove('has-error');
+        errorEl.classList.remove('visible', 'success');
+        errorEl.textContent = '';
+        return;
+    }
+
+    // 1. Check duplicate within other cards in the same modal form
+    const container = document.getElementById('modalMembersContainer');
+    const allRegInputs = container.querySelectorAll('input[name="regNo"]');
+    let duplicateInModal = false;
+
+    allRegInputs.forEach(otherInput => {
+        if (otherInput !== input && otherInput.value.trim().toUpperCase() === regNo) {
+            duplicateInModal = true;
+        }
+    });
+
+    if (duplicateInModal) {
+        input.classList.add('error');
+        input.classList.remove('valid');
+        card.classList.add('has-error');
+        errorEl.innerHTML = '⚠️ Duplicate: Reg No is already entered in another card in this form.';
+        errorEl.className = 'field-error reg-error visible';
+        return;
+    }
+
+    // 2. Check against database (excluding current group if editing)
+    checkAdminRegTimeout = setTimeout(async () => {
+        try {
+            const excludeParam = editingGroupId ? `?excludeGroupId=${editingGroupId}` : '';
+            const res = await fetch(`/api/check-reg/${encodeURIComponent(regNo)}${excludeParam}`);
+            const data = await res.json();
+
+            if (data.exists) {
+                input.classList.add('error');
+                input.classList.remove('valid');
+                card.classList.add('has-error');
+                errorEl.innerHTML = `❌ Already registered in <strong>${escapeHtml(data.groupName)}</strong> (${escapeHtml(data.memberName)}). Cannot add!`;
+                errorEl.className = 'field-error reg-error visible';
+            } else {
+                input.classList.remove('error');
+                input.classList.add('valid');
+                card.classList.remove('has-error');
+                errorEl.innerHTML = '✓ Student Reg No is unique and available';
+                errorEl.className = 'field-error reg-error visible success';
+            }
+        } catch (e) {
+            // network error
+        }
+    }, 300);
+}
+
+// Handle Save Group in Admin Modal
 async function handleSaveGroup(e) {
     e.preventDefault();
     const groupName = document.getElementById('modalGroupName').value.trim();
     const type = document.getElementById('modalGroupType').value;
     const container = document.getElementById('modalMembersContainer');
-    const rows = container.querySelectorAll('.modal-member-row');
+    const cards = container.querySelectorAll('.admin-member-card');
 
-    const members = [];
-    rows.forEach(row => {
-        const inputs = row.querySelectorAll('input');
-        const roleSelect = row.querySelector('select');
-        members.push({
-            name: inputs[0].value.trim(),
-            regNo: inputs[1].value.trim().toUpperCase(),
-            whatsapp: inputs[2].value.trim(),
-            role: roleSelect.value
-        });
-    });
-
-    if (members.length === 0) {
+    if (cards.length === 0) {
         Swal.fire({ icon: 'warning', title: 'Empty Group', text: 'Please add at least 1 member.', background: '#1a1f35', color: '#f1f5f9' });
         return;
     }
+
+    if (type === 'team' && cards.length > 5) {
+        Swal.fire({ icon: 'warning', title: 'Too Many Members', text: 'Team can have a maximum of 5 members.', background: '#1a1f35', color: '#f1f5f9' });
+        return;
+    }
+
+    const members = [];
+    let hasValidationError = false;
+    let errorMessage = '';
+
+    cards.forEach((card, index) => {
+        const nameInput = card.querySelector('input[name="name"]');
+        const regInput = card.querySelector('input[name="regNo"]');
+        const whatsappInput = card.querySelector('input[name="whatsapp"]');
+        const roleSelect = card.querySelector('.admin-card-role-select');
+
+        const name = nameInput.value.trim();
+        const regNo = regInput.value.trim().toUpperCase();
+        const whatsapp = whatsappInput.value.trim();
+        const role = roleSelect.value;
+
+        if (!name || !regNo || !whatsapp) {
+            hasValidationError = true;
+            errorMessage = 'All fields (Name, Reg No, WhatsApp) are required for every member.';
+        }
+
+        if (regInput.classList.contains('error')) {
+            hasValidationError = true;
+            errorMessage = `Student Reg No "${regNo}" is invalid or already registered in another group!`;
+        }
+
+        members.push({ name, regNo, whatsapp, role });
+    });
+
+    // Check duplicate regNo within submission
+    const regNos = members.map(m => m.regNo);
+    const uniqueRegNos = new Set(regNos);
+    if (uniqueRegNos.size !== regNos.length) {
+        hasValidationError = true;
+        errorMessage = 'Duplicate registration numbers detected in this group submission.';
+    }
+
+    if (hasValidationError) {
+        Swal.fire({
+            icon: 'error',
+            title: 'Cannot Save Group',
+            text: errorMessage,
+            background: '#1a1f35',
+            color: '#f1f5f9'
+        });
+        return;
+    }
+
+    const saveBtn = document.getElementById('saveGroupBtn');
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Saving...';
 
     try {
         let res;
@@ -387,21 +596,151 @@ async function handleSaveGroup(e) {
             loadAdminData();
             Swal.fire({
                 icon: 'success',
-                title: 'Saved',
+                title: 'Saved Successfully!',
                 text: data.message,
-                timer: 1500,
+                timer: 1800,
                 showConfirmButton: false,
                 background: '#1a1f35',
                 color: '#f1f5f9',
             });
         } else {
-            Swal.fire({ icon: 'error', title: 'Failed', text: data.message, background: '#1a1f35', color: '#f1f5f9' });
+            Swal.fire({ icon: 'error', title: 'Save Failed', text: data.message, background: '#1a1f35', color: '#f1f5f9' });
         }
     } catch (err) {
         Swal.fire({ icon: 'error', title: 'Error', text: err.message, background: '#1a1f35', color: '#f1f5f9' });
+    } finally {
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Save Group';
     }
 }
 
+// ============================================
+// QUICK ADD SINGLE STUDENT TO AN EXISTING GROUP
+// ============================================
+let quickAddCheckTimeout = null;
+
+function openQuickAddMember(groupId, groupName) {
+    const group = (currentDb.groups || []).find(g => g.id === groupId);
+    if (group && (group.members || []).length >= 5) {
+        Swal.fire({
+            icon: 'info',
+            title: 'Group is Full',
+            text: `${group.groupName} already has maximum 5 members. Cannot add more.`,
+            background: '#1a1f35',
+            color: '#f1f5f9'
+        });
+        return;
+    }
+
+    document.getElementById('quickAddGroupId').value = groupId;
+    document.getElementById('quickAddModalTitle').textContent = `Add Student to ${groupName}`;
+    document.getElementById('quickAddName').value = '';
+    document.getElementById('quickAddReg').value = '';
+    document.getElementById('quickAddReg').classList.remove('error', 'valid');
+    document.getElementById('quickAddRegError').classList.remove('visible', 'success');
+    document.getElementById('quickAddRegError').textContent = '';
+    document.getElementById('quickAddWhatsapp').value = '';
+    document.getElementById('quickAddRole').value = 'Member';
+
+    document.getElementById('quickAddMemberOverlay').classList.remove('hidden');
+}
+
+function closeQuickAddMemberModal() {
+    document.getElementById('quickAddMemberOverlay').classList.add('hidden');
+}
+
+function checkQuickAddReg(input) {
+    clearTimeout(quickAddCheckTimeout);
+    const regNo = input.value.trim().toUpperCase();
+    const errorEl = document.getElementById('quickAddRegError');
+
+    if (!regNo) {
+        input.classList.remove('error', 'valid');
+        errorEl.classList.remove('visible', 'success');
+        errorEl.textContent = '';
+        return;
+    }
+
+    quickAddCheckTimeout = setTimeout(async () => {
+        try {
+            const res = await fetch(`/api/check-reg/${encodeURIComponent(regNo)}`);
+            const data = await res.json();
+            if (data.exists) {
+                input.classList.add('error');
+                input.classList.remove('valid');
+                errorEl.innerHTML = `❌ Already registered in <strong>${escapeHtml(data.groupName)}</strong> (${escapeHtml(data.memberName)}). Cannot add!`;
+                errorEl.className = 'field-error visible';
+            } else {
+                input.classList.remove('error');
+                input.classList.add('valid');
+                errorEl.innerHTML = '✓ Reg No is available';
+                errorEl.className = 'field-error visible success';
+            }
+        } catch (e) {
+            // network error
+        }
+    }, 300);
+}
+
+async function handleQuickAddMemberSubmit(e) {
+    e.preventDefault();
+    const groupId = document.getElementById('quickAddGroupId').value;
+    const name = document.getElementById('quickAddName').value.trim();
+    const regInput = document.getElementById('quickAddReg');
+    const regNo = regInput.value.trim().toUpperCase();
+    const whatsapp = document.getElementById('quickAddWhatsapp').value.trim();
+    const role = document.getElementById('quickAddRole').value;
+
+    if (regInput.classList.contains('error')) {
+        Swal.fire({
+            icon: 'error',
+            title: 'Cannot Add Student',
+            text: `Student with Reg No. "${regNo}" is already registered in another group!`,
+            background: '#1a1f35',
+            color: '#f1f5f9'
+        });
+        return;
+    }
+
+    const btn = document.getElementById('quickAddSubmitBtn');
+    btn.disabled = true;
+    btn.textContent = 'Adding...';
+
+    try {
+        const res = await fetch(`/api/admin/group/${groupId}/member`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${adminToken}`
+            },
+            body: JSON.stringify({ name, regNo, whatsapp, role })
+        });
+
+        const data = await res.json();
+        if (data.success) {
+            closeQuickAddMemberModal();
+            loadAdminData();
+            Swal.fire({
+                icon: 'success',
+                title: 'Student Added!',
+                text: data.message,
+                timer: 1800,
+                showConfirmButton: false,
+                background: '#1a1f35',
+                color: '#f1f5f9'
+            });
+        } else {
+            Swal.fire({ icon: 'error', title: 'Failed to Add', text: data.message, background: '#1a1f35', color: '#f1f5f9' });
+        }
+    } catch (err) {
+        Swal.fire({ icon: 'error', title: 'Error', text: err.message, background: '#1a1f35', color: '#f1f5f9' });
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Add Student';
+    }
+}
+
+// Delete Group
 async function confirmDeleteGroup(id) {
     const result = await Swal.fire({
         title: 'Delete this group?',
@@ -432,7 +771,9 @@ async function confirmDeleteGroup(id) {
     }
 }
 
-// ---- PDF Generation from Admin ----
+// ============================================
+// PDF GENERATION (Admin side - Exact university layout)
+// ============================================
 function generateAndDownloadPDF() {
     const groups = currentDb.groups || [];
     if (groups.length === 0) {
@@ -481,17 +822,30 @@ function generateAndDownloadPDF() {
 
     document.getElementById('pdfTotalLine').innerHTML = `<strong>Total: ${totalStudents} students in ${groups.length} groups</strong>`;
 
+    const container = document.getElementById('pdfReportContainer');
     const element = document.getElementById('pdfPage');
+
+    // Temporarily bring into viewport under SweetAlert overlay so html2canvas captures properly
+    container.classList.add('pdf-rendering');
+
     const opt = {
-        margin: [10, 10, 10, 10],
+        margin: [8, 8, 8, 8],
         filename: `Physics_Lab_Groups_Official_${new Date().toISOString().slice(0, 10)}.pdf`,
         image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true, logging: false },
+        html2canvas: { 
+            scale: 2, 
+            useCORS: true, 
+            logging: false,
+            scrollX: 0,
+            scrollY: 0,
+            backgroundColor: '#ffffff'
+        },
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
     };
 
     Swal.fire({
-        title: 'Generating PDF...',
+        title: 'Generating Official PDF...',
+        text: 'Preparing official departmental format, please wait...',
         allowOutsideClick: false,
         background: '#1a1f35',
         color: '#f1f5f9',
@@ -499,8 +853,10 @@ function generateAndDownloadPDF() {
     });
 
     html2pdf().set(opt).from(element).save().then(() => {
+        container.classList.remove('pdf-rendering');
         Swal.fire({ icon: 'success', title: 'Downloaded!', timer: 2000, showConfirmButton: false, background: '#1a1f35', color: '#f1f5f9' });
     }).catch(err => {
+        container.classList.remove('pdf-rendering');
         Swal.fire({ icon: 'error', title: 'PDF Error', text: err.message, background: '#1a1f35', color: '#f1f5f9' });
     });
 }

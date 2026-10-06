@@ -1,4 +1,39 @@
 {
-  "groups": [],
-  "nextGroupId": 1
+  "groups": [
+    {
+      "id": 1,
+      "groupName": "G-01",
+      "type": "individual",
+      "members": [
+        {
+          "name": "fd",
+          "regNo": "1",
+          "whatsapp": "3",
+          "role": "Team Leader"
+        },
+        {
+          "name": "f",
+          "regNo": "2",
+          "whatsapp": "3",
+          "role": "Member"
+        }
+      ],
+      "registeredAt": "2026-10-06T12:38:59.117Z"
+    },
+    {
+      "id": 2,
+      "groupName": "G-02",
+      "type": "individual",
+      "members": [
+        {
+          "name": "d",
+          "regNo": "11",
+          "whatsapp": "e",
+          "role": "Individual"
+        }
+      ],
+      "registeredAt": "2026-10-06T12:40:49.586Z"
+    }
+  ],
+  "nextGroupId": 3
 }
