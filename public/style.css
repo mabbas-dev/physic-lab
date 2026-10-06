@@ -1237,11 +1237,192 @@ body {
     font-family: 'Inter', sans-serif !important;
 }
 
-.swal2-confirm {
-    background: linear-gradient(135deg, #7c3aed, #a855f7) !important;
-    border: none !important;
-    border-radius: 10px !important;
-    font-family: 'Outfit', sans-serif !important;
-    font-weight: 700 !important;
-    padding: 12px 32px !important;
+/* ---------- Groups Header Row & PDF Action Button ---------- */
+.groups-header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-bottom: 24px;
 }
+
+.groups-header-row .section-title {
+    margin-bottom: 0;
+}
+
+.pdf-download-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    background: linear-gradient(135deg, #1e3a8a, #2563eb);
+    border: 1px solid rgba(59, 130, 246, 0.4);
+    border-radius: var(--radius-md);
+    color: white;
+    font-family: var(--font-primary);
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition-normal);
+    box-shadow: 0 4px 14px rgba(37, 99, 235, 0.3);
+}
+
+.pdf-download-btn:hover {
+    background: linear-gradient(135deg, #1d4ed8, #3b82f6);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(37, 99, 235, 0.45);
+}
+
+.footer-admin-link {
+    margin-top: 10px;
+    font-size: 0.75rem;
+}
+
+.footer-admin-link a {
+    color: var(--text-muted);
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+.footer-admin-link a:hover {
+    color: var(--accent-secondary);
+    text-decoration: underline;
+}
+
+/* ============================================
+   OFFICIAL PDF REPORT STYLES (Exact match)
+   ============================================ */
+.pdf-offscreen {
+    position: absolute;
+    left: -9999px;
+    top: -9999px;
+    width: 210mm;
+}
+
+.pdf-page {
+    background: #ffffff !important;
+    color: #000000 !important;
+    font-family: Arial, Helvetica, sans-serif !important;
+    padding: 12mm 15mm !important;
+    box-sizing: border-box;
+}
+
+.pdf-header-wrapper {
+    text-align: center;
+    margin-bottom: 12px;
+}
+
+.pdf-uni-name {
+    font-size: 19pt !important;
+    font-weight: 800 !important;
+    color: #1b365d !important;
+    margin: 0 0 4px 0 !important;
+    font-family: Arial, sans-serif !important;
+}
+
+.pdf-dept-name {
+    font-size: 13pt !important;
+    font-weight: 800 !important;
+    color: #000000 !important;
+    margin: 0 0 6px 0 !important;
+}
+
+.pdf-doc-title {
+    font-size: 14pt !important;
+    font-weight: 800 !important;
+    color: #000000 !important;
+    margin: 0 0 10px 0 !important;
+}
+
+.pdf-divider {
+    height: 2.5px;
+    background-color: #1b365d;
+    width: 100%;
+    margin-bottom: 12px;
+}
+
+.pdf-meta-box {
+    font-size: 9.5pt !important;
+    line-height: 1.5 !important;
+    margin-bottom: 12px !important;
+    color: #1b365d !important;
+}
+
+.pdf-meta-box p {
+    margin: 0 0 2px 0 !important;
+    color: #1b365d !important;
+}
+
+.pdf-meta-box strong {
+    color: #1b365d !important;
+    font-weight: 700 !important;
+}
+
+.pdf-total-line {
+    color: #1b365d !important;
+    font-weight: 800 !important;
+    margin-top: 4px !important;
+}
+
+.pdf-table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    border: 1.5px solid #4a5568 !important;
+}
+
+.pdf-table th {
+    background-color: #1b365d !important;
+    color: #ffffff !important;
+    font-size: 10pt !important;
+    font-weight: 700 !important;
+    padding: 8px 6px !important;
+    text-align: center !important;
+    border: 1px solid #4a5568 !important;
+}
+
+.pdf-table td {
+    border: 1px solid #718096 !important;
+    padding: 6px 10px !important;
+    font-size: 9.5pt !important;
+    color: #000000 !important;
+    background-color: #ffffff !important;
+}
+
+.pdf-group-cell {
+    text-align: center !important;
+    vertical-align: middle !important;
+    font-weight: 800 !important;
+    font-size: 10.5pt !important;
+    color: #000000 !important;
+    background-color: #ffffff !important;
+}
+
+.pdf-role-leader {
+    font-weight: 700 !important;
+    text-align: center !important;
+    color: #000000 !important;
+}
+
+.pdf-role-member {
+    font-weight: 400 !important;
+    text-align: center !important;
+    color: #000000 !important;
+}
+
+.pdf-name-leader {
+    font-weight: 700 !important;
+    color: #000000 !important;
+}
+
+.pdf-name-member {
+    font-weight: 400 !important;
+    color: #000000 !important;
+}
+
+.pdf-reg-cell {
+    text-align: center !important;
+    font-family: Arial, sans-serif !important;
+    color: #000000 !important;
+}
+

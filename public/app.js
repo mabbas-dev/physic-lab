@@ -5,6 +5,7 @@
 const API_BASE = '';
 let registrationType = null;
 let memberCount = 0;
+let currentGroups = [];
 
 // Deadline: 7th October 2026, 9:00 AM PKT (UTC+5)
 const DEADLINE = new Date('2026-10-07T09:00:00+05:00');
@@ -46,7 +47,6 @@ function updateCountdown() {
     const diff = DEADLINE - now;
 
     if (diff <= 0) {
-        // Time expired
         if (!isExpired) {
             isExpired = true;
             onTimeExpired();
@@ -63,7 +63,6 @@ function updateCountdown() {
     document.getElementById('cdMinutes').textContent = String(minutes).padStart(2, '0');
     document.getElementById('cdSeconds').textContent = String(seconds).padStart(2, '0');
 
-    // Urgent state when less than 1 hour
     const section = document.getElementById('countdownSection');
     if (totalSeconds < 3600) {
         section.classList.add('urgent');
@@ -73,12 +72,9 @@ function updateCountdown() {
 }
 
 function onTimeExpired() {
-    // Hide countdown and registration
     document.getElementById('countdownSection').classList.add('hidden');
     document.getElementById('registrationSection').classList.add('hidden');
     document.getElementById('infoBanner').classList.add('hidden');
-
-    // Show expired banner
     document.getElementById('expiredBanner').classList.remove('hidden');
 }
 
@@ -192,12 +188,12 @@ function addMemberCard(container, isLeader, isTeam) {
         <div class="member-fields">
             <div class="field-group full-width">
                 <label for="name_${index}">Full Name</label>
-                <input type="text" id="name_${index}" name="name" placeholder="e.g. Muhammad Abbas" required autocomplete="off">
+                <input type="text" id="name_${index}" name="name" placeholder="e.g. Muhammad Ahmad" required autocomplete="off">
                 <span class="field-error" id="name_error_${index}"></span>
             </div>
             <div class="field-group">
                 <label for="reg_${index}">Registration No.</label>
-                <input type="text" id="reg_${index}" name="regNo" placeholder="e.g. 5112360...." required autocomplete="off" oninput="checkRegNo(this, ${index})">
+                <input type="text" id="reg_${index}" name="regNo" placeholder="e.g. 2024-BSSE-001" required autocomplete="off" oninput="checkRegNo(this, ${index})">
                 <span class="field-error" id="reg_error_${index}"></span>
             </div>
             <div class="field-group">
@@ -283,7 +279,6 @@ function checkRegNo(input, index) {
         return;
     }
 
-    // Check within the current form
     const allRegInputs = document.querySelectorAll('#membersContainer input[name="regNo"]');
     let duplicateInForm = false;
     allRegInputs.forEach(inp => {
@@ -351,7 +346,6 @@ async function handleSubmit(event) {
         const regNo = regInput.value.trim();
         const whatsapp = whatsappInput.value.trim();
 
-        // Validate
         if (!name) {
             nameInput.classList.add('error');
             const errEl = card.querySelector('.field-error');
@@ -389,7 +383,6 @@ async function handleSubmit(event) {
         return;
     }
 
-    // Disable button and show loader
     submitBtn.disabled = true;
     submitText.textContent = 'Registering...';
     loader.classList.remove('hidden');
@@ -410,7 +403,6 @@ async function handleSubmit(event) {
             goBack();
             loadGroups();
 
-            // Show beautiful SweetAlert
             const memberNames = data.group.members.map(m => m.name).join(', ');
             const typeLabel = data.group.type === 'team' ? 'Team' : 'Individual';
 
@@ -430,9 +422,6 @@ async function handleSubmit(event) {
                 confirmButtonText: 'Awesome!',
                 background: '#1a1f35',
                 color: '#f1f5f9',
-                showClass: {
-                    popup: 'swal2-show',
-                },
             });
         } else {
             Swal.fire({
@@ -466,14 +455,14 @@ async function loadGroups() {
         const data = await res.json();
 
         if (data.success) {
-            renderGroups(data.groups);
+            currentGroups = data.groups || [];
+            renderGroups(currentGroups);
         }
     } catch (err) {
         console.error('Failed to load groups:', err);
     }
 }
 
-// Crown SVG (no emoji)
 const CROWN_SVG = '<svg viewBox="0 0 24 18" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M2 16h20M2 16L4 6l4 4 4-8 4 8 4-4 2 10" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="rgba(245,158,11,0.2)"/></svg>';
 
 function renderGroups(groups) {
@@ -504,7 +493,7 @@ function renderGroups(groups) {
         let membersHTML = '';
         group.members.forEach((member) => {
             const initials = member.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
-
+            
             let avatarClass, roleTag, crownHTML;
             if (member.role === 'Team Leader') {
                 avatarClass = 'leader-avatar';
@@ -549,6 +538,111 @@ function renderGroups(groups) {
     });
 }
 
+// ============================================
+// PDF GENERATION (Exact layout from template)
+// ============================================
+function generateAndDownloadPDF() {
+    if (!currentGroups || currentGroups.length === 0) {
+        Swal.fire({
+            icon: 'info',
+            title: 'No Groups',
+            text: 'There are no registered groups to export to PDF yet.',
+            background: '#1a1f35',
+            color: '#f1f5f9',
+        });
+        return;
+    }
+
+    let totalStudents = 0;
+    const tbody = document.getElementById('pdfTableBody');
+    tbody.innerHTML = '';
+
+    currentGroups.forEach((group) => {
+        const members = group.members || [];
+        totalStudents += members.length;
+        const rowSpanCount = members.length;
+
+        members.forEach((member, mIndex) => {
+            const tr = document.createElement('tr');
+            
+            // First cell: Group column with rowspan
+            if (mIndex === 0) {
+                const tdGroup = document.createElement('td');
+                tdGroup.rowSpan = rowSpanCount;
+                tdGroup.className = 'pdf-group-cell';
+                tdGroup.textContent = group.groupName;
+                tr.appendChild(tdGroup);
+            }
+
+            // Second cell: Role
+            const tdRole = document.createElement('td');
+            const isLeader = member.role === 'Team Leader';
+            tdRole.className = isLeader ? 'pdf-role-leader' : 'pdf-role-member';
+            tdRole.textContent = isLeader ? 'Leader' : (member.role === 'Individual' ? 'Individual' : 'Member');
+            tr.appendChild(tdRole);
+
+            // Third cell: Student Name
+            const tdName = document.createElement('td');
+            tdName.className = isLeader ? 'pdf-name-leader' : 'pdf-name-member';
+            tdName.textContent = member.name;
+            tr.appendChild(tdName);
+
+            // Fourth cell: Reg No
+            const tdReg = document.createElement('td');
+            tdReg.className = 'pdf-reg-cell';
+            tdReg.textContent = member.regNo;
+            tr.appendChild(tdReg);
+
+            tbody.appendChild(tr);
+        });
+    });
+
+    document.getElementById('pdfTotalLine').innerHTML = `<strong>Total: ${totalStudents} students in ${currentGroups.length} groups</strong>`;
+
+    const element = document.getElementById('pdfPage');
+    
+    const opt = {
+        margin: [10, 10, 10, 10],
+        filename: `Physics_Lab_Groups_Fall_2026_${new Date().toISOString().slice(0, 10)}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true, logging: false },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    };
+
+    // Show loading toast
+    Swal.fire({
+        title: 'Generating PDF...',
+        text: 'Please wait while we prepare your document.',
+        allowOutsideClick: false,
+        background: '#1a1f35',
+        color: '#f1f5f9',
+        didOpen: () => {
+            Swal.showLoading();
+        }
+    });
+
+    html2pdf().set(opt).from(element).save().then(() => {
+        Swal.fire({
+            icon: 'success',
+            title: 'PDF Downloaded!',
+            text: 'Your official Physics Lab Project Groups PDF has been saved.',
+            timer: 2500,
+            showConfirmButton: false,
+            background: '#1a1f35',
+            color: '#f1f5f9',
+        });
+    }).catch(err => {
+        console.error('PDF generation error:', err);
+        Swal.fire({
+            icon: 'error',
+            title: 'PDF Generation Failed',
+            text: 'An error occurred while creating the PDF. Please try again.',
+            background: '#1a1f35',
+            color: '#f1f5f9',
+        });
+    });
+}
+
 // ---- Utility ----
 function escapeHTML(str) {
     const div = document.createElement('div');
@@ -556,7 +650,6 @@ function escapeHTML(str) {
     return div.innerHTML;
 }
 
-// Add fadeOut keyframe dynamically
 const style = document.createElement('style');
 style.textContent = '@keyframes fadeOut { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(-10px); } }';
 document.head.appendChild(style);
