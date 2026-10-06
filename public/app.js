@@ -188,12 +188,12 @@ function addMemberCard(container, isLeader, isTeam) {
         <div class="member-fields">
             <div class="field-group full-width">
                 <label for="name_${index}">Full Name</label>
-                <input type="text" id="name_${index}" name="name" placeholder="e.g. Muhammad Ahmad" required autocomplete="off">
+                <input type="text" id="name_${index}" name="name" placeholder="e.g. Muhammad Abbas" required autocomplete="off">
                 <span class="field-error" id="name_error_${index}"></span>
             </div>
             <div class="field-group">
                 <label for="reg_${index}">Registration No.</label>
-                <input type="text" id="reg_${index}" name="regNo" placeholder="e.g. 2024-BSSE-001" required autocomplete="off" oninput="checkRegNo(this, ${index})">
+                <input type="text" id="reg_${index}" name="regNo" placeholder="e.g. 5112326..." required autocomplete="off" oninput="checkRegNo(this, ${index})">
                 <span class="field-error" id="reg_error_${index}"></span>
             </div>
             <div class="field-group">
@@ -494,12 +494,12 @@ function renderGroups(groups) {
         let hasLeaderAssigned = false;
         group.members.forEach((member) => {
             const initials = member.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
-            
+
             let avatarClass, roleTag, crownHTML;
             const isIndividual = group.type === 'individual';
             const isLeaderRole = member.role === 'Team Leader' || member.role === 'Individual';
             const isLeader = isIndividual || (isLeaderRole && !hasLeaderAssigned);
-            
+
             if (isLeader) {
                 hasLeaderAssigned = true;
                 avatarClass = 'leader-avatar';
@@ -566,7 +566,7 @@ function generateAndDownloadPDF() {
 
         members.forEach((member, mIndex) => {
             const tr = document.createElement('tr');
-            
+
             // First cell: Group column with rowspan
             if (mIndex === 0) {
                 const tdGroup = document.createElement('td');
@@ -605,7 +605,7 @@ function generateAndDownloadPDF() {
 
     const container = document.getElementById('pdfReportContainer');
     const element = document.getElementById('pdfPage');
-    
+
     // Temporarily bring into viewport under SweetAlert overlay so html2canvas renders perfectly
     container.classList.add('pdf-rendering');
 
@@ -613,9 +613,9 @@ function generateAndDownloadPDF() {
         margin: [8, 8, 8, 8],
         filename: `Physics_Lab_Groups_Fall_2026_${new Date().toISOString().slice(0, 10)}.pdf`,
         image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { 
-            scale: 2, 
-            useCORS: true, 
+        html2canvas: {
+            scale: 2,
+            useCORS: true,
             logging: false,
             scrollX: 0,
             scrollY: 0,

@@ -408,7 +408,7 @@ function addModalMemberRow(role = 'Member', name = '', regNo = '', whatsapp = ''
     const type = document.getElementById('modalGroupType').value;
     const container = document.getElementById('modalMembersContainer');
     const currentCards = container.querySelectorAll('.admin-member-card');
-    
+
     if (type === 'individual' && currentCards.length >= 1) {
         Swal.fire({
             icon: 'info',
@@ -474,12 +474,12 @@ function addModalMemberRow(role = 'Member', name = '', regNo = '', whatsapp = ''
         <div class="admin-member-grid">
             <div class="admin-input-col">
                 <label>Student Full Name *</label>
-                <input type="text" name="name" placeholder="e.g. Muhammad Ahmad" value="${escapeHtml(name)}" required autocomplete="off">
+                <input type="text" name="name" placeholder="e.g. Muhammad Abbas" value="${escapeHtml(name)}" required autocomplete="off">
                 <span class="field-error name-error"></span>
             </div>
             <div class="admin-input-col">
                 <label>Registration No. *</label>
-                <input type="text" name="regNo" placeholder="e.g. 2024-BSSE-001" value="${escapeHtml(regNo)}" required autocomplete="off" oninput="checkAdminRegNo(this)">
+                <input type="text" name="regNo" placeholder="e.g. 5112326..." value="${escapeHtml(regNo)}" required autocomplete="off" oninput="checkAdminRegNo(this)">
                 <span class="field-error reg-error"></span>
             </div>
             <div class="admin-input-col">
@@ -1011,9 +1011,9 @@ function generateAndDownloadPDF() {
         margin: [8, 8, 8, 8],
         filename: `Physics_Lab_Groups_Official_${new Date().toISOString().slice(0, 10)}.pdf`,
         image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { 
-            scale: 2, 
-            useCORS: true, 
+        html2canvas: {
+            scale: 2,
+            useCORS: true,
             logging: false,
             scrollX: 0,
             scrollY: 0,
