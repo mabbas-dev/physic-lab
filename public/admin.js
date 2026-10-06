@@ -171,14 +171,17 @@ function renderAdminGroups() {
         const memberCountLabel = isIndiv ? '1 member' : `${members.length}/5 members`;
 
         let rowsHtml = '';
+        let hasLeaderAssigned = false;
         members.forEach(m => {
-            const isLeader = m.role === 'Team Leader' || m.role === 'Individual' || isIndiv;
+            const isLeaderRole = m.role === 'Team Leader' || m.role === 'Individual';
+            const isLeader = isIndiv || (isLeaderRole && !hasLeaderAssigned);
+            if (isLeader) hasLeaderAssigned = true;
             rowsHtml += `
                 <tr>
                     <td style="font-weight:600;color:${isLeader ? '#fbbf24' : '#f1f5f9'}">
                         ${isLeader ? '👑 ' : ''}${escapeHtml(m.name)}
                     </td>
-                    <td><span class="member-role-tag ${isLeader ? 'leader-tag' : ''}">${isLeader ? 'Leader' : (m.role || 'Member')}</span></td>
+                    <td><span class="member-role-tag ${isLeader ? 'leader-tag' : ''}">${isLeader ? 'Leader' : 'Member'}</span></td>
                     <td style="font-family:monospace;color:#94a3b8;">${escapeHtml(m.regNo)}</td>
                     <td style="color:#94a3b8;">${escapeHtml(m.whatsapp)}</td>
                 </tr>
@@ -432,7 +435,22 @@ function addModalMemberRow(role = 'Member', name = '', regNo = '', whatsapp = ''
     card.className = 'admin-member-card';
 
     const isIndivType = type === 'individual';
-    const isLeader = role === 'Team Leader' || isIndivType;
+    let effectiveRole = role;
+    if (isIndivType) {
+        effectiveRole = 'Team Leader';
+    } else {
+        const hasExistingLeader = Array.from(currentCards).some(c => {
+            const s = c.querySelector('.admin-card-role-select');
+            return s && s.value === 'Team Leader';
+        });
+        if (hasExistingLeader && effectiveRole === 'Team Leader') {
+            effectiveRole = 'Member';
+        } else if (!hasExistingLeader && currentCards.length === 0) {
+            effectiveRole = 'Team Leader';
+        }
+    }
+
+    const isLeader = effectiveRole === 'Team Leader';
     const badgeClass = isLeader ? 'leader' : 'member';
     const badgeText = isLeader ? '👑 Team Leader' : 'Member';
 
@@ -490,12 +508,44 @@ function removeModalMember(btn) {
         return;
     }
     const card = btn.closest('.admin-member-card');
+    const wasLeader = card.querySelector('.admin-card-role-select')?.value === 'Team Leader';
     card.remove();
+
+    // If the removed member was the leader, promote first remaining member to Leader
+    if (wasLeader) {
+        const remainingCards = container.querySelectorAll('.admin-member-card');
+        if (remainingCards.length > 0) {
+            const firstRoleSelect = remainingCards[0].querySelector('.admin-card-role-select');
+            if (firstRoleSelect) {
+                firstRoleSelect.value = 'Team Leader';
+                updateModalCardHeader(remainingCards[0]);
+            }
+        }
+    }
+
     updateModalMembersHeader();
 }
 
 function handleCardRoleChange(select) {
     const card = select.closest('.admin-member-card');
+    const type = document.getElementById('modalGroupType').value;
+    const newRole = select.value;
+
+    // Enforce strictly 1 Team Leader per group: demote others automatically
+    if (type === 'team' && newRole === 'Team Leader') {
+        const container = document.getElementById('modalMembersContainer');
+        const cards = container.querySelectorAll('.admin-member-card');
+        cards.forEach(c => {
+            if (c !== card) {
+                const otherSelect = c.querySelector('.admin-card-role-select');
+                if (otherSelect && otherSelect.value === 'Team Leader') {
+                    otherSelect.value = 'Member';
+                    updateModalCardHeader(c);
+                }
+            }
+        });
+    }
+
     updateModalCardHeader(card);
 }
 
@@ -650,6 +700,22 @@ async function handleSaveGroup(e) {
         errorMessage = 'Duplicate registration numbers detected in this group submission.';
     }
 
+    // Ensure strictly 1 Team Leader per team
+    if (type === 'team') {
+        const leaderIndices = [];
+        members.forEach((m, idx) => {
+            if (m.role === 'Team Leader') leaderIndices.push(idx);
+        });
+
+        if (leaderIndices.length === 0) {
+            members[0].role = 'Team Leader';
+        } else if (leaderIndices.length > 1) {
+            for (let i = 1; i < leaderIndices.length; i++) {
+                members[leaderIndices[i]].role = 'Member';
+            }
+        }
+    }
+
     if (hasValidationError) {
         Swal.fire({
             icon: 'error',
@@ -737,13 +803,26 @@ function openQuickAddMember(groupId, groupName) {
     document.getElementById('quickAddRegError').classList.remove('visible', 'success');
     document.getElementById('quickAddRegError').textContent = '';
     document.getElementById('quickAddWhatsapp').value = '';
-    document.getElementById('quickAddRole').value = 'Member';
+
+    const hasLeader = (group?.members || []).some(m => m.role === 'Team Leader');
+    const roleSelect = document.getElementById('quickAddRole');
+    if (hasLeader) {
+        roleSelect.innerHTML = '<option value="Member" selected style="background-color:#0f172a;color:#ffffff;">Member</option>';
+        roleSelect.disabled = true;
+    } else {
+        roleSelect.innerHTML = `
+            <option value="Team Leader" selected style="background-color:#0f172a;color:#ffffff;">Team Leader</option>
+            <option value="Member" style="background-color:#0f172a;color:#ffffff;">Member</option>
+        `;
+        roleSelect.disabled = false;
+    }
 
     document.getElementById('quickAddMemberOverlay').classList.remove('hidden');
 }
 
 function closeQuickAddMemberModal() {
     document.getElementById('quickAddMemberOverlay').classList.add('hidden');
+    document.getElementById('quickAddRole').disabled = false;
 }
 
 function checkQuickAddReg(input) {
@@ -887,6 +966,7 @@ function generateAndDownloadPDF() {
         totalStudents += members.length;
         const rowSpanCount = members.length;
 
+        let hasLeaderAssigned = false;
         members.forEach((member, mIndex) => {
             const tr = document.createElement('tr');
             if (mIndex === 0) {
@@ -898,7 +978,9 @@ function generateAndDownloadPDF() {
             }
 
             const tdRole = document.createElement('td');
-            const isLeader = member.role === 'Team Leader' || member.role === 'Individual' || group.type === 'individual';
+            const isLeaderRole = member.role === 'Team Leader' || member.role === 'Individual';
+            const isLeader = group.type === 'individual' || (isLeaderRole && !hasLeaderAssigned);
+            if (isLeader) hasLeaderAssigned = true;
             tdRole.className = isLeader ? 'pdf-role-leader' : 'pdf-role-member';
             tdRole.textContent = isLeader ? 'Leader' : 'Member';
             tr.appendChild(tdRole);

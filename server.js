@@ -308,16 +308,31 @@ app.post(['/api/admin/group', '/admin/group'], verifyAdminAuth, (req, res) => {
     const groupId = db.nextGroupId || (db.groups.length + 1);
     const assignedName = groupName ? groupName.trim() : `G-${groupId < 10 ? '0' + groupId : groupId}`;
 
+    let hasLeader = false;
+    const mappedMembers = members.map((m, index) => {
+        let role = 'Member';
+        if (type === 'individual' || members.length === 1) {
+            role = 'Team Leader';
+        } else if (m.role === 'Team Leader' && !hasLeader) {
+            role = 'Team Leader';
+            hasLeader = true;
+        }
+        return {
+            name: m.name,
+            regNo: m.regNo,
+            whatsapp: m.whatsapp,
+            role: role
+        };
+    });
+    if (type !== 'individual' && !hasLeader && mappedMembers.length > 0) {
+        mappedMembers[0].role = 'Team Leader';
+    }
+
     const newGroup = {
         id: groupId,
         groupName: assignedName,
         type: type || (members.length > 1 ? 'team' : 'individual'),
-        members: members.map((m, index) => ({
-            name: m.name,
-            regNo: m.regNo,
-            whatsapp: m.whatsapp,
-            role: (type === 'individual' || members.length === 1) ? 'Team Leader' : (m.role || (index === 0 ? 'Team Leader' : 'Member'))
-        })),
+        members: mappedMembers,
         registeredAt: new Date().toISOString()
     };
 
@@ -389,12 +404,27 @@ app.put(['/api/admin/group/:id', '/admin/group/:id'], verifyAdminAuth, (req, res
             }
         }
 
-        group.members = members.map((m, index) => ({
-            name: m.name,
-            regNo: m.regNo,
-            whatsapp: m.whatsapp,
-            role: (type === 'individual' || members.length === 1) ? 'Team Leader' : (m.role || (index === 0 ? 'Team Leader' : 'Member'))
-        }));
+        let hasLeader = false;
+        const mappedMembers = members.map((m, index) => {
+            let role = 'Member';
+            if (type === 'individual' || members.length === 1) {
+                role = 'Team Leader';
+            } else if (m.role === 'Team Leader' && !hasLeader) {
+                role = 'Team Leader';
+                hasLeader = true;
+            }
+            return {
+                name: m.name,
+                regNo: m.regNo,
+                whatsapp: m.whatsapp,
+                role: role
+            };
+        });
+        if (type !== 'individual' && !hasLeader && mappedMembers.length > 0) {
+            mappedMembers[0].role = 'Team Leader';
+        }
+
+        group.members = mappedMembers;
     }
 
     if (groupName) group.groupName = groupName.trim();
@@ -439,11 +469,14 @@ app.post(['/api/admin/group/:id/member', '/admin/group/:id/member'], verifyAdmin
         }
     }
 
+    const hasLeader = (group.members || []).some(m => m.role === 'Team Leader');
+    const assignedRole = (group.type === 'individual') ? 'Team Leader' : (role === 'Team Leader' && !hasLeader ? 'Team Leader' : (hasLeader ? 'Member' : 'Team Leader'));
+
     const newMember = {
         name: cleanName,
         regNo: cleanRegNo,
         whatsapp: cleanWhatsapp,
-        role: role || (group.members.length === 0 ? 'Team Leader' : 'Member')
+        role: assignedRole
     };
 
     group.members.push(newMember);

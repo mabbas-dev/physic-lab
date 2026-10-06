@@ -6,7 +6,7 @@
       "type": "individual",
       "members": [
         {
-          "name": "fd",
+          "name": "MUHAMMAD ABBAS CR",
           "regNo": "1",
           "whatsapp": "3",
           "role": "Team Leader"
@@ -23,11 +23,31 @@
           "name": "d",
           "regNo": "11",
           "whatsapp": "e",
-          "role": "Individual"
+          "role": "Team Leader"
         }
       ],
       "registeredAt": "2026-10-06T12:40:49.586Z"
+    },
+    {
+      "id": 3,
+      "groupName": "G-03",
+      "type": "team",
+      "members": [
+        {
+          "name": "abbas",
+          "regNo": "1W",
+          "whatsapp": "02222",
+          "role": "Team Leader"
+        },
+        {
+          "name": "sd",
+          "regNo": "44",
+          "whatsapp": "22",
+          "role": "Member"
+        }
+      ],
+      "registeredAt": "2026-10-06T13:18:06.255Z"
     }
   ],
-  "nextGroupId": 3
+  "nextGroupId": 4
 }

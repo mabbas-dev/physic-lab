@@ -491,12 +491,17 @@ function renderGroups(groups) {
             : '<span class="group-type-badge individual-badge">Individual</span>';
 
         let membersHTML = '';
+        let hasLeaderAssigned = false;
         group.members.forEach((member) => {
             const initials = member.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
             
             let avatarClass, roleTag, crownHTML;
-            const isLeader = member.role === 'Team Leader' || member.role === 'Individual' || group.type === 'individual';
+            const isIndividual = group.type === 'individual';
+            const isLeaderRole = member.role === 'Team Leader' || member.role === 'Individual';
+            const isLeader = isIndividual || (isLeaderRole && !hasLeaderAssigned);
+            
             if (isLeader) {
+                hasLeaderAssigned = true;
                 avatarClass = 'leader-avatar';
                 roleTag = '<span class="member-role-tag leader-tag">Leader</span>';
                 crownHTML = '<div class="crown-icon">' + CROWN_SVG + '</div>';
@@ -573,7 +578,9 @@ function generateAndDownloadPDF() {
 
             // Second cell: Role
             const tdRole = document.createElement('td');
-            const isLeader = member.role === 'Team Leader' || member.role === 'Individual' || group.type === 'individual';
+            const isLeaderRole = member.role === 'Team Leader' || member.role === 'Individual';
+            const isLeader = group.type === 'individual' || (isLeaderRole && !hasLeaderAssigned);
+            if (isLeader) hasLeaderAssigned = true;
             tdRole.className = isLeader ? 'pdf-role-leader' : 'pdf-role-member';
             tdRole.textContent = isLeader ? 'Leader' : 'Member';
             tr.appendChild(tdRole);
