@@ -3,7 +3,7 @@ const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
-const https = require('https');
+const mysql = require('mysql2/promise');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -18,15 +18,31 @@ const IS_VERCEL = !!process.env.VERCEL;
 const LOCAL_DB_FILE = path.join(__dirname, 'db.json');
 const DB_FILE = IS_VERCEL ? path.join('/tmp', 'db.json') : LOCAL_DB_FILE;
 
-// Cloud KV configuration (Vercel KV or Upstash Redis REST API)
-const KV_REST_API_URL = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
-const KV_REST_API_TOKEN = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
-const HAS_KV = !!(KV_REST_API_URL && KV_REST_API_TOKEN);
+// Hostinger MySQL Configuration (Defaults pre-configured for instant deployment)
+const MYSQL_CONFIG = {
+    host: process.env.MYSQL_HOST || 'srv1768.hstgr.io',
+    user: process.env.MYSQL_USER || 'u132832831_physic',
+    password: process.env.MYSQL_PASSWORD || 'D^g+ng22o',
+    database: process.env.MYSQL_DATABASE || 'u132832831_physic',
+    port: parseInt(process.env.MYSQL_PORT || '3306'),
+    waitForConnections: true,
+    connectionLimit: 10,
+    queueLimit: 0,
+    enableKeepAlive: true,
+    keepAliveInitialDelay: 0
+};
 
-// Optional JSONBin.io configuration
-const JSONBIN_BIN_ID = process.env.JSONBIN_BIN_ID;
-const JSONBIN_API_KEY = process.env.JSONBIN_API_KEY;
-const HAS_JSONBIN = !!(JSONBIN_BIN_ID && JSONBIN_API_KEY);
+let dbPool = null;
+try {
+    dbPool = mysql.createPool(MYSQL_CONFIG);
+} catch (e) {
+    console.error('Failed to create MySQL pool:', e.message);
+}
+
+// In-memory cache for fast reads and rate-limit avoidance
+let memoryCache = null;
+let lastCacheTime = 0;
+const CACHE_TTL_MS = 2000; // 2 seconds cache
 
 // Middleware
 app.use(cors());
@@ -50,144 +66,114 @@ app.get('/admin', (req, res) => {
 });
 
 // ============================================
-// STORAGE & DATABASE LAYER
+// STORAGE & DATABASE LAYER (Hostinger MySQL)
 // ============================================
 
-// Helper to make HTTPS POST requests using native fetch or https module fallback
-async function postJson(urlStr, headers, body) {
-    if (typeof fetch !== 'undefined') {
-        const res = await fetch(urlStr, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                ...headers
-            },
-            body: typeof body === 'string' ? body : JSON.stringify(body)
-        });
-        if (!res.ok) {
-            throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-        }
-        return await res.json();
-    }
-
-    return new Promise((resolve, reject) => {
-        const url = new URL(urlStr);
-        const data = typeof body === 'string' ? body : JSON.stringify(body);
-        const req = https.request({
-            hostname: url.hostname,
-            port: url.port || 443,
-            path: url.pathname + url.search,
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Content-Length': Buffer.byteLength(data),
-                ...headers
-            }
-        }, (res) => {
-            let resBody = '';
-            res.on('data', chunk => { resBody += chunk; });
-            res.on('end', () => {
-                try {
-                    resolve(JSON.parse(resBody));
-                } catch (e) {
-                    resolve(resBody);
-                }
-            });
-        });
-        req.on('error', reject);
-        req.write(data);
-        req.end();
-    });
-}
-
-async function fetchFromKv() {
-    if (!HAS_KV) return null;
+async function ensureMySQLTables() {
+    if (!dbPool) return;
     try {
-        const data = await postJson(
-            KV_REST_API_URL,
-            { Authorization: `Bearer ${KV_REST_API_TOKEN}` },
-            ['GET', 'physics_lab_db']
-        );
-        if (data && data.result) {
-            return typeof data.result === 'string' ? JSON.parse(data.result) : data.result;
-        }
-        return null;
+        await dbPool.query(`
+            CREATE TABLE IF NOT EXISTS app_groups (
+                id INT PRIMARY KEY,
+                group_name VARCHAR(50) NOT NULL,
+                type VARCHAR(20) NOT NULL,
+                registered_at VARCHAR(60) NOT NULL
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+        `);
+
+        await dbPool.query(`
+            CREATE TABLE IF NOT EXISTS app_members (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                group_id INT NOT NULL,
+                name VARCHAR(150) NOT NULL,
+                reg_no VARCHAR(50) NOT NULL,
+                whatsapp VARCHAR(50) NOT NULL,
+                role VARCHAR(50) NOT NULL,
+                INDEX idx_group (group_id),
+                INDEX idx_regno (reg_no),
+                FOREIGN KEY (group_id) REFERENCES app_groups(id) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+        `);
+
+        await dbPool.query(`
+            CREATE TABLE IF NOT EXISTS app_meta (
+                meta_key VARCHAR(50) PRIMARY KEY,
+                meta_value TEXT NOT NULL
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+        `);
     } catch (err) {
-        console.error('KV GET error:', err.message);
-        return null;
+        console.error('MySQL table verification error:', err.message);
     }
 }
 
-async function saveToKv(data) {
-    if (!HAS_KV) return false;
+async function readDBFromMySQL() {
+    if (!dbPool) return null;
+    const [groupRows] = await dbPool.query('SELECT * FROM app_groups ORDER BY id ASC');
+    const [memberRows] = await dbPool.query('SELECT * FROM app_members ORDER BY group_id ASC, id ASC');
+    const [metaRows] = await dbPool.query('SELECT meta_value FROM app_meta WHERE meta_key = "nextGroupId"');
+
+    const membersByGroup = {};
+    for (const m of memberRows) {
+        if (!membersByGroup[m.group_id]) membersByGroup[m.group_id] = [];
+        membersByGroup[m.group_id].push({
+            name: m.name,
+            regNo: m.reg_no,
+            whatsapp: m.whatsapp,
+            role: m.role
+        });
+    }
+
+    const groups = groupRows.map(g => ({
+        id: g.id,
+        groupName: g.group_name,
+        type: g.type,
+        members: membersByGroup[g.id] || [],
+        registeredAt: g.registered_at
+    }));
+
+    let nextGroupId = metaRows.length > 0 ? parseInt(metaRows[0].meta_value) : null;
+    if (!nextGroupId || isNaN(nextGroupId)) {
+        const maxId = groups.reduce((max, g) => Math.max(max, g.id), 0);
+        nextGroupId = maxId + 1;
+    }
+
+    return { groups, nextGroupId };
+}
+
+async function writeDBToMySQL(data) {
+    if (!dbPool) return false;
+    const conn = await dbPool.getConnection();
     try {
-        const res = await postJson(
-            KV_REST_API_URL,
-            { Authorization: `Bearer ${KV_REST_API_TOKEN}` },
-            ['SET', 'physics_lab_db', JSON.stringify(data)]
+        await conn.beginTransaction();
+        await conn.query('DELETE FROM app_members');
+        await conn.query('DELETE FROM app_groups');
+
+        for (const g of (data.groups || [])) {
+            await conn.query(
+                'INSERT INTO app_groups (id, group_name, type, registered_at) VALUES (?, ?, ?, ?)',
+                [g.id, g.groupName, g.type, g.registeredAt || new Date().toISOString()]
+            );
+            for (const m of (g.members || [])) {
+                await conn.query(
+                    'INSERT INTO app_members (group_id, name, reg_no, whatsapp, role) VALUES (?, ?, ?, ?, ?)',
+                    [g.id, m.name, m.regNo, m.whatsapp, m.role]
+                );
+            }
+        }
+
+        await conn.query(
+            'INSERT INTO app_meta (meta_key, meta_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE meta_value = ?',
+            ['nextGroupId', String(data.nextGroupId || 1), String(data.nextGroupId || 1)]
         );
-        return res && (res.result === 'OK' || res.result === true);
+
+        await conn.commit();
+        return true;
     } catch (err) {
-        console.error('KV SET error:', err.message);
-        return false;
-    }
-}
-
-async function fetchFromJsonBin() {
-    if (!HAS_JSONBIN) return null;
-    try {
-        if (typeof fetch !== 'undefined') {
-            const res = await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}/latest`, {
-                headers: { 'X-Master-Key': JSONBIN_API_KEY }
-            });
-            if (res.ok) {
-                const json = await res.json();
-                return json.record;
-            }
-        }
-        return null;
-    } catch (e) {
-        return null;
-    }
-}
-
-async function saveToJsonBin(data) {
-    if (!HAS_JSONBIN) return false;
-    try {
-        if (typeof fetch !== 'undefined') {
-            const res = await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Master-Key': JSONBIN_API_KEY
-                },
-                body: JSON.stringify(data)
-            });
-            return res.ok;
-        }
-        return false;
-    } catch (e) {
-        return false;
-    }
-}
-
-// In-memory cache for fast reads and mitigating rate limits
-let memoryCache = null;
-let lastCacheTime = 0;
-const CACHE_TTL_MS = 2500; // 2.5 seconds cache
-
-function initDB() {
-    try {
-        if (!fs.existsSync(DB_FILE)) {
-            if (IS_VERCEL && fs.existsSync(LOCAL_DB_FILE)) {
-                fs.copyFileSync(LOCAL_DB_FILE, DB_FILE);
-            } else {
-                const initialData = { groups: [], nextGroupId: 1 };
-                fs.writeFileSync(DB_FILE, JSON.stringify(initialData, null, 2));
-            }
-        }
-    } catch (e) {
-        console.error('DB init error:', e);
+        await conn.rollback();
+        console.error('MySQL write error:', err.message);
+        throw err;
+    } finally {
+        conn.release();
     }
 }
 
@@ -195,7 +181,7 @@ function syncLocalFile(data) {
     try {
         fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2));
     } catch (e) {
-        // Ignore file errors in read-only environments
+        // Ignore file errors in read-only filesystems
     }
 }
 
@@ -205,49 +191,35 @@ async function readDB() {
         return memoryCache;
     }
 
-    // 1. Try Vercel KV / Upstash Redis
-    if (HAS_KV) {
-        const kvData = await fetchFromKv();
-        if (kvData && Array.isArray(kvData.groups)) {
-            memoryCache = kvData;
-            lastCacheTime = now;
-            syncLocalFile(kvData);
-            return kvData;
+    // 1. Primary: Hostinger MySQL Database
+    if (dbPool) {
+        try {
+            const sqlData = await readDBFromMySQL();
+            if (sqlData) {
+                memoryCache = sqlData;
+                lastCacheTime = now;
+                syncLocalFile(sqlData);
+                return sqlData;
+            }
+        } catch (err) {
+            console.error('MySQL read fallback to local:', err.message);
         }
     }
 
-    // 2. Try JSONBin
-    if (HAS_JSONBIN) {
-        const jbData = await fetchFromJsonBin();
-        if (jbData && Array.isArray(jbData.groups)) {
-            memoryCache = jbData;
-            lastCacheTime = now;
-            syncLocalFile(jbData);
-            return jbData;
-        }
-    }
-
-    // 3. Fallback to local file / /tmp
-    initDB();
+    // 2. Fallback: Local JSON file
     try {
+        if (!fs.existsSync(DB_FILE)) {
+            const initialData = { groups: [], nextGroupId: 1 };
+            fs.writeFileSync(DB_FILE, JSON.stringify(initialData, null, 2));
+            return initialData;
+        }
         const content = fs.readFileSync(DB_FILE, 'utf-8');
         const parsed = JSON.parse(content);
         memoryCache = parsed;
         lastCacheTime = now;
-
-        // If KV is configured but uninitialized, seed it with initial file state
-        if (HAS_KV) {
-            saveToKv(parsed);
-        } else if (HAS_JSONBIN) {
-            saveToJsonBin(parsed);
-        }
-
         return parsed;
     } catch (e) {
-        const empty = { groups: [], nextGroupId: 1 };
-        memoryCache = empty;
-        lastCacheTime = now;
-        return empty;
+        return { groups: [], nextGroupId: 1 };
     }
 }
 
@@ -255,34 +227,24 @@ async function writeDB(data) {
     memoryCache = data;
     lastCacheTime = Date.now();
 
-    // 1. Write to KV if available
-    if (HAS_KV) {
-        await saveToKv(data);
+    // 1. Write to MySQL
+    if (dbPool) {
+        try {
+            await writeDBToMySQL(data);
+        } catch (err) {
+            console.error('Failed writing to MySQL:', err.message);
+        }
     }
 
-    // 2. Write to JSONBin if available
-    if (HAS_JSONBIN) {
-        await saveToJsonBin(data);
-    }
-
-    // 3. Always write to local file / /tmp
+    // 2. Write to local file / /tmp backup
     syncLocalFile(data);
 }
 
 function getStorageInfo() {
-    if (HAS_KV) {
+    if (dbPool) {
         return {
-            type: 'cloud_kv',
-            name: 'Vercel KV / Upstash Redis',
-            isPersistent: true,
-            isVercel: IS_VERCEL,
-            status: 'connected'
-        };
-    }
-    if (HAS_JSONBIN) {
-        return {
-            type: 'cloud_jsonbin',
-            name: 'JSONBin.io',
+            type: 'mysql',
+            name: 'Hostinger MySQL Database',
             isPersistent: true,
             isVercel: IS_VERCEL,
             status: 'connected'
@@ -542,7 +504,6 @@ app.post(['/api/admin/group', '/admin/group'], verifyAdminAuth, async (req, res)
     }
 
     try {
-        // Check against ALL existing groups in DB
         const db = await readDB();
         for (const member of members) {
             for (const existingGroup of db.groups) {
@@ -717,7 +678,6 @@ app.post(['/api/admin/group/:id/member', '/admin/group/:id/member'], verifyAdmin
             return res.status(400).json({ success: false, message: 'This group already has the maximum 5 members.' });
         }
 
-        // Check if student exists in any group (including this one)
         for (const g of db.groups) {
             for (const m of g.members) {
                 if (m.regNo && m.regNo.toUpperCase() === cleanRegNo) {
@@ -789,16 +749,16 @@ app.delete(['/api/groups/:id', '/groups/:id'], verifyAdminAuth, async (req, res)
 });
 
 if (require.main === module) {
-    initDB();
-    app.listen(PORT, () => {
-        const storage = getStorageInfo();
-        console.log(`\n==============================================`);
-        console.log(`Physics Lab Registration Server is running!`);
-        console.log(`Public URL: http://localhost:${PORT}`);
-        console.log(`Admin URL:  http://localhost:${PORT}/admin`);
-        console.log(`Storage:    ${storage.name} [${storage.isPersistent ? 'PERSISTENT' : 'TEMPORARY'}]`);
-        console.log(`Database:   ${DB_FILE}`);
-        console.log(`==============================================\n`);
+    ensureMySQLTables().then(() => {
+        app.listen(PORT, () => {
+            const storage = getStorageInfo();
+            console.log(`\n==============================================`);
+            console.log(`Physics Lab Registration Server is running!`);
+            console.log(`Public URL: http://localhost:${PORT}`);
+            console.log(`Admin URL:  http://localhost:${PORT}/admin`);
+            console.log(`Storage:    ${storage.name} [PERSISTENT]`);
+            console.log(`==============================================\n`);
+        });
     });
 }
 

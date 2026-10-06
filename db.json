@@ -1,4 +1,115 @@
 {
-  "groups": [],
-  "nextGroupId": 1
+  "groups": [
+    {
+      "id": 1,
+      "groupName": "G-01",
+      "type": "team",
+      "members": [
+        {
+          "name": "MUHAMMAD ABBAS",
+          "regNo": "5112326015",
+          "whatsapp": "03146402311",
+          "role": "Team Leader"
+        },
+        {
+          "name": "MUHAMMAD SAIM",
+          "regNo": "5112326037",
+          "whatsapp": "03322420260",
+          "role": "Member"
+        },
+        {
+          "name": "REJA NABEEL",
+          "regNo": "5112326049",
+          "whatsapp": "03401400777",
+          "role": "Member"
+        },
+        {
+          "name": "LAIBA RIAZ",
+          "regNo": "5112326008",
+          "whatsapp": "03018704013",
+          "role": "Member"
+        },
+        {
+          "name": "FATIMA ZAHEER",
+          "regNo": "5112326044",
+          "whatsapp": "03095361659",
+          "role": "Member"
+        }
+      ],
+      "registeredAt": "2026-10-06T12:38:59.117Z"
+    },
+    {
+      "id": 2,
+      "groupName": "G-02",
+      "type": "team",
+      "members": [
+        {
+          "name": "Tehreem Fatima",
+          "regNo": "5112326003",
+          "whatsapp": "+923331585510",
+          "role": "Team Leader"
+        },
+        {
+          "name": "Momina Khalique",
+          "regNo": "5112326055",
+          "whatsapp": "+92 315 3353113",
+          "role": "Member"
+        }
+      ],
+      "registeredAt": "2026-10-06T14:23:40.106Z"
+    },
+    {
+      "id": 3,
+      "groupName": "G-03",
+      "type": "team",
+      "members": [
+        {
+          "name": "Summiya Hidayat",
+          "regNo": "5112326047",
+          "whatsapp": "+92 329 5483074",
+          "role": "Team Leader"
+        },
+        {
+          "name": "Fatima Hidayat",
+          "regNo": "5112326048",
+          "whatsapp": "03023501830",
+          "role": "Member"
+        },
+        {
+          "name": "Jaweria sagheer",
+          "regNo": "51123260627",
+          "whatsapp": "0315 4634882",
+          "role": "Member"
+        }
+      ],
+      "registeredAt": "2026-10-06T15:50:10.847Z"
+    },
+    {
+      "id": 4,
+      "groupName": "G-04",
+      "type": "team",
+      "members": [
+        {
+          "name": "Tayyeb nisar",
+          "regNo": "5112326036",
+          "whatsapp": "03485842786",
+          "role": "Team Leader"
+        },
+        {
+          "name": "Fahad Ibrar",
+          "regNo": "5112326026",
+          "whatsapp": "03488253820",
+          "role": "Member"
+        },
+        {
+          "name": "Mobeen Ashraf",
+          "regNo": "5112326029",
+          "whatsapp": "03418991116",
+          "role": "Member"
+        }
+      ],
+      "registeredAt": "2026-10-06T15:53:48.850Z"
+    }
+  ],
+  "nextGroupId": 5
 }
