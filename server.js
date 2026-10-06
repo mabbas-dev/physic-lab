@@ -189,7 +189,7 @@ app.post(['/api/register', '/register'], (req, res) => {
         type: type,
         members: members.map((m, index) => ({
             ...m,
-            role: type === 'team' && index === 0 ? 'Team Leader' : (type === 'individual' ? 'Individual' : 'Member')
+            role: (type === 'individual' || members.length === 1) ? 'Team Leader' : (index === 0 ? 'Team Leader' : 'Member')
         })),
         registeredAt: new Date().toISOString()
     };
@@ -316,7 +316,7 @@ app.post(['/api/admin/group', '/admin/group'], verifyAdminAuth, (req, res) => {
             name: m.name,
             regNo: m.regNo,
             whatsapp: m.whatsapp,
-            role: m.role || (index === 0 && members.length > 1 ? 'Team Leader' : (members.length === 1 ? 'Individual' : 'Member'))
+            role: (type === 'individual' || members.length === 1) ? 'Team Leader' : (m.role || (index === 0 ? 'Team Leader' : 'Member'))
         })),
         registeredAt: new Date().toISOString()
     };
@@ -393,7 +393,7 @@ app.put(['/api/admin/group/:id', '/admin/group/:id'], verifyAdminAuth, (req, res
             name: m.name,
             regNo: m.regNo,
             whatsapp: m.whatsapp,
-            role: m.role || (index === 0 && members.length > 1 ? 'Team Leader' : (members.length === 1 ? 'Individual' : 'Member'))
+            role: (type === 'individual' || members.length === 1) ? 'Team Leader' : (m.role || (index === 0 ? 'Team Leader' : 'Member'))
         }));
     }
 

@@ -166,17 +166,19 @@ function renderAdminGroups() {
         const card = document.createElement('div');
         card.className = 'admin-group-card';
         const members = group.members || [];
-        const isFull = members.length >= 5;
+        const isIndiv = group.type === 'individual';
+        const isFull = members.length >= 5 || isIndiv;
+        const memberCountLabel = isIndiv ? '1 member' : `${members.length}/5 members`;
 
         let rowsHtml = '';
         members.forEach(m => {
-            const isLeader = m.role === 'Team Leader';
+            const isLeader = m.role === 'Team Leader' || m.role === 'Individual' || isIndiv;
             rowsHtml += `
                 <tr>
                     <td style="font-weight:600;color:${isLeader ? '#fbbf24' : '#f1f5f9'}">
                         ${isLeader ? '👑 ' : ''}${escapeHtml(m.name)}
                     </td>
-                    <td><span class="member-role-tag ${isLeader ? 'leader-tag' : ''}">${m.role || 'Member'}</span></td>
+                    <td><span class="member-role-tag ${isLeader ? 'leader-tag' : ''}">${isLeader ? 'Leader' : (m.role || 'Member')}</span></td>
                     <td style="font-family:monospace;color:#94a3b8;">${escapeHtml(m.regNo)}</td>
                     <td style="color:#94a3b8;">${escapeHtml(m.whatsapp)}</td>
                 </tr>
@@ -187,11 +189,11 @@ function renderAdminGroups() {
             <div class="admin-group-header">
                 <div class="admin-group-title">
                     <span>${group.groupName}</span>
-                    <span class="group-type-badge ${group.type === 'team' ? 'team-badge' : 'individual-badge'}">${group.type}</span>
-                    <span style="font-size:0.78rem;color:#94a3b8;background:rgba(255,255,255,0.06);padding:2px 8px;border-radius:10px;">${members.length}/5 members</span>
+                    <span class="group-type-badge ${isIndiv ? 'individual-badge' : 'team-badge'}">${isIndiv ? 'Individual' : 'Team'}</span>
+                    <span style="font-size:0.78rem;color:#94a3b8;background:rgba(255,255,255,0.06);padding:2px 8px;border-radius:10px;">${memberCountLabel}</span>
                 </div>
                 <div class="admin-group-actions">
-                    ${isFull ? '<span class="badge-full">Full (5/5)</span>' : `<button class="admin-btn-accent-sm" onclick="openQuickAddMember(${group.id}, '${escapeHtml(group.groupName)}')">+ Add Student</button>`}
+                    ${isIndiv ? '<span class="badge-full">Individual (1/1)</span>' : (isFull ? '<span class="badge-full">Full (5/5)</span>' : `<button class="admin-btn-accent-sm" onclick="openQuickAddMember(${group.id}, '${escapeHtml(group.groupName)}')">+ Add Student</button>`)}
                     <button class="admin-btn-ghost-sm" onclick="openEditGroupModal(${group.id})">Edit</button>
                     <button class="admin-btn-danger" style="padding:6px 12px;font-size:0.8rem;" onclick="confirmDeleteGroup(${group.id})">Delete</button>
                 </div>
@@ -354,24 +356,72 @@ function handleModalTypeChange() {
     const type = document.getElementById('modalGroupType').value;
     const container = document.getElementById('modalMembersContainer');
     const cards = container.querySelectorAll('.admin-member-card');
-    if (type === 'individual' && cards.length > 1) {
-        for (let i = 1; i < cards.length; i++) cards[i].remove();
-        const firstRoleSelect = cards[0].querySelector('.admin-card-role-select');
-        if (firstRoleSelect) firstRoleSelect.value = 'Individual';
-        updateModalCardHeader(cards[0]);
+
+    if (type === 'individual') {
+        // Individual: keep exactly 1 member
+        if (cards.length > 1) {
+            for (let i = 1; i < cards.length; i++) cards[i].remove();
+        } else if (cards.length === 0) {
+            addModalMemberRow('Team Leader');
+        }
+
+        const firstCard = container.querySelector('.admin-member-card');
+        if (firstCard) {
+            const roleSelect = firstCard.querySelector('.admin-card-role-select');
+            if (roleSelect) {
+                roleSelect.innerHTML = '<option value="Team Leader" selected style="background-color:#0f172a;color:#ffffff;">Team Leader</option>';
+                roleSelect.value = 'Team Leader';
+                roleSelect.disabled = true;
+            }
+            updateModalCardHeader(firstCard);
+            const removeBtn = firstCard.querySelector('.admin-card-remove-btn');
+            if (removeBtn) removeBtn.style.display = 'none';
+        }
+    } else {
+        // Team mode: allow 2-5 members
+        const firstCard = container.querySelector('.admin-member-card');
+        if (firstCard) {
+            const roleSelect = firstCard.querySelector('.admin-card-role-select');
+            if (roleSelect) {
+                roleSelect.disabled = false;
+                roleSelect.innerHTML = `
+                    <option value="Team Leader" selected style="background-color:#0f172a;color:#ffffff;">Team Leader</option>
+                    <option value="Member" style="background-color:#0f172a;color:#ffffff;">Member</option>
+                `;
+                roleSelect.value = 'Team Leader';
+            }
+            const removeBtn = firstCard.querySelector('.admin-card-remove-btn');
+            if (removeBtn) removeBtn.style.display = 'flex';
+            updateModalCardHeader(firstCard);
+        }
+        if (cards.length <= 1) {
+            addModalMemberRow('Member');
+        }
     }
     updateModalMembersHeader();
 }
 
 function addModalMemberRow(role = 'Member', name = '', regNo = '', whatsapp = '') {
+    const type = document.getElementById('modalGroupType').value;
     const container = document.getElementById('modalMembersContainer');
     const currentCards = container.querySelectorAll('.admin-member-card');
     
+    if (type === 'individual' && currentCards.length >= 1) {
+        Swal.fire({
+            icon: 'info',
+            title: 'Individual Registration',
+            text: 'Individual registration is strictly limited to 1 member.',
+            background: '#1a1f35',
+            color: '#f1f5f9'
+        });
+        return;
+    }
+
     if (currentCards.length >= 5) {
         Swal.fire({
             icon: 'warning',
             title: 'Maximum Reached',
-            text: 'A group can have a maximum of 5 members.',
+            text: 'A team can have a maximum of 5 members.',
             background: '#1a1f35',
             color: '#f1f5f9'
         });
@@ -381,21 +431,26 @@ function addModalMemberRow(role = 'Member', name = '', regNo = '', whatsapp = ''
     const card = document.createElement('div');
     card.className = 'admin-member-card';
 
-    const isLeader = role === 'Team Leader';
-    const isIndiv = role === 'Individual';
-    const badgeClass = isLeader ? 'leader' : (isIndiv ? 'individual' : 'member');
-    const badgeText = isLeader ? '👑 Team Leader' : (isIndiv ? 'Individual' : 'Member');
+    const isIndivType = type === 'individual';
+    const isLeader = role === 'Team Leader' || isIndivType;
+    const badgeClass = isLeader ? 'leader' : 'member';
+    const badgeText = isLeader ? '👑 Team Leader' : 'Member';
+
+    const roleOptionsHTML = isIndivType ? `
+        <option value="Team Leader" selected style="background-color:#0f172a;color:#ffffff;">Team Leader</option>
+    ` : `
+        <option value="Team Leader" ${isLeader ? 'selected' : ''} style="background-color:#0f172a;color:#ffffff;">Team Leader</option>
+        <option value="Member" ${!isLeader ? 'selected' : ''} style="background-color:#0f172a;color:#ffffff;">Member</option>
+    `;
 
     card.innerHTML = `
         <div class="admin-member-card-header">
             <span class="admin-member-role-badge ${badgeClass}">${badgeText}</span>
             <div class="admin-card-actions">
-                <select class="admin-card-role-select" onchange="handleCardRoleChange(this)">
-                    <option value="Team Leader" ${isLeader ? 'selected' : ''}>Team Leader</option>
-                    <option value="Member" ${role === 'Member' ? 'selected' : ''}>Member</option>
-                    <option value="Individual" ${isIndiv ? 'selected' : ''}>Individual</option>
+                <select class="admin-card-role-select" onchange="handleCardRoleChange(this)" ${isIndivType ? 'disabled' : ''}>
+                    ${roleOptionsHTML}
                 </select>
-                <button type="button" class="admin-card-remove-btn" onclick="removeModalMember(this)" title="Remove member">&#10005;</button>
+                <button type="button" class="admin-card-remove-btn" onclick="removeModalMember(this)" title="Remove member" style="${isIndivType ? 'display:none;' : ''}">&#10005;</button>
             </div>
         </div>
         <div class="admin-member-grid">
@@ -445,26 +500,36 @@ function handleCardRoleChange(select) {
 }
 
 function updateModalCardHeader(card) {
+    const type = document.getElementById('modalGroupType').value;
     const role = card.querySelector('.admin-card-role-select').value;
     const badge = card.querySelector('.admin-member-role-badge');
-    const isLeader = role === 'Team Leader';
-    const isIndiv = role === 'Individual';
+    const isLeader = role === 'Team Leader' || role === 'Individual' || type === 'individual';
 
-    badge.className = `admin-member-role-badge ${isLeader ? 'leader' : (isIndiv ? 'individual' : 'member')}`;
-    badge.textContent = isLeader ? '👑 Team Leader' : (isIndiv ? 'Individual' : 'Member');
+    badge.className = `admin-member-role-badge ${isLeader ? 'leader' : 'member'}`;
+    badge.textContent = isLeader ? '👑 Team Leader' : 'Member';
 }
 
 function updateModalMembersHeader() {
+    const type = document.getElementById('modalGroupType').value;
     const container = document.getElementById('modalMembersContainer');
     const cards = container.querySelectorAll('.admin-member-card');
     const count = cards.length;
     const badge = document.getElementById('modalMemberCountBadge');
-    if (badge) badge.textContent = `${count}/5`;
-
     const addBtn = document.getElementById('modalAddMemberBtn');
-    if (addBtn) {
-        addBtn.disabled = count >= 5;
-        addBtn.style.opacity = count >= 5 ? '0.5' : '1';
+
+    if (type === 'individual') {
+        if (badge) badge.textContent = '1/1 (Individual)';
+        if (addBtn) {
+            addBtn.disabled = true;
+            addBtn.style.display = 'none';
+        }
+    } else {
+        if (badge) badge.textContent = `${count}/5`;
+        if (addBtn) {
+            addBtn.style.display = 'inline-block';
+            addBtn.disabled = count >= 5;
+            addBtn.style.opacity = count >= 5 ? '0.5' : '1';
+        }
     }
 }
 
@@ -537,14 +602,16 @@ async function handleSaveGroup(e) {
     const container = document.getElementById('modalMembersContainer');
     const cards = container.querySelectorAll('.admin-member-card');
 
-    if (cards.length === 0) {
-        Swal.fire({ icon: 'warning', title: 'Empty Group', text: 'Please add at least 1 member.', background: '#1a1f35', color: '#f1f5f9' });
-        return;
-    }
-
-    if (type === 'team' && cards.length > 5) {
-        Swal.fire({ icon: 'warning', title: 'Too Many Members', text: 'Team can have a maximum of 5 members.', background: '#1a1f35', color: '#f1f5f9' });
-        return;
+    if (type === 'individual') {
+        if (cards.length !== 1) {
+            Swal.fire({ icon: 'warning', title: 'Individual Limit', text: 'Individual registration must contain exactly 1 member.', background: '#1a1f35', color: '#f1f5f9' });
+            return;
+        }
+    } else {
+        if (cards.length < 2 || cards.length > 5) {
+            Swal.fire({ icon: 'warning', title: 'Invalid Team Size', text: 'A team must have between 2 and 5 members.', background: '#1a1f35', color: '#f1f5f9' });
+            return;
+        }
     }
 
     const members = [];
@@ -560,7 +627,7 @@ async function handleSaveGroup(e) {
         const name = nameInput.value.trim();
         const regNo = regInput.value.trim().toUpperCase();
         const whatsapp = whatsappInput.value.trim();
-        const role = roleSelect.value;
+        const role = type === 'individual' ? 'Team Leader' : roleSelect.value;
 
         if (!name || !regNo || !whatsapp) {
             hasValidationError = true;
@@ -831,9 +898,9 @@ function generateAndDownloadPDF() {
             }
 
             const tdRole = document.createElement('td');
-            const isLeader = member.role === 'Team Leader';
+            const isLeader = member.role === 'Team Leader' || member.role === 'Individual' || group.type === 'individual';
             tdRole.className = isLeader ? 'pdf-role-leader' : 'pdf-role-member';
-            tdRole.textContent = isLeader ? 'Leader' : (member.role === 'Individual' ? 'Individual' : 'Member');
+            tdRole.textContent = isLeader ? 'Leader' : 'Member';
             tr.appendChild(tdRole);
 
             const tdName = document.createElement('td');

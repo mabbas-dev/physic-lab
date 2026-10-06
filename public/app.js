@@ -165,11 +165,11 @@ function addMemberCard(container, isLeader, isTeam) {
 
     let roleClass, roleLabel;
     if (!isTeam) {
-        roleClass = 'individual-tag';
-        roleLabel = 'Individual';
+        roleClass = 'leader';
+        roleLabel = '👑 Team Leader';
     } else if (isLeader) {
         roleClass = 'leader';
-        roleLabel = 'Team Leader';
+        roleLabel = '👑 Team Leader';
     } else {
         roleClass = 'member-tag';
         roleLabel = 'Member ' + (index - 1);
@@ -495,14 +495,11 @@ function renderGroups(groups) {
             const initials = member.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
             
             let avatarClass, roleTag, crownHTML;
-            if (member.role === 'Team Leader') {
+            const isLeader = member.role === 'Team Leader' || member.role === 'Individual' || group.type === 'individual';
+            if (isLeader) {
                 avatarClass = 'leader-avatar';
                 roleTag = '<span class="member-role-tag leader-tag">Leader</span>';
                 crownHTML = '<div class="crown-icon">' + CROWN_SVG + '</div>';
-            } else if (member.role === 'Individual') {
-                avatarClass = 'individual-avatar';
-                roleTag = '';
-                crownHTML = '';
             } else {
                 avatarClass = 'regular-avatar';
                 roleTag = '';
@@ -576,9 +573,9 @@ function generateAndDownloadPDF() {
 
             // Second cell: Role
             const tdRole = document.createElement('td');
-            const isLeader = member.role === 'Team Leader';
+            const isLeader = member.role === 'Team Leader' || member.role === 'Individual' || group.type === 'individual';
             tdRole.className = isLeader ? 'pdf-role-leader' : 'pdf-role-member';
-            tdRole.textContent = isLeader ? 'Leader' : (member.role === 'Individual' ? 'Individual' : 'Member');
+            tdRole.textContent = isLeader ? 'Leader' : 'Member';
             tr.appendChild(tdRole);
 
             // Third cell: Student Name

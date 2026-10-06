@@ -528,10 +528,10 @@
 .modal-field-row input {
     width: 100%;
     padding: 10px 14px;
-    background: rgba(255, 255, 255, 0.06);
-    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: #1e293b;
+    border: 1px solid rgba(124, 58, 237, 0.3);
     border-radius: 8px;
-    color: white;
+    color: #f8fafc;
     font-size: 0.9rem;
     outline: none;
     transition: border-color 0.2s;
@@ -540,6 +540,41 @@
 .modal-field-row select:focus,
 .modal-field-row input:focus {
     border-color: #a78bfa;
+    background: #0f172a;
+    box-shadow: 0 0 0 2px rgba(167, 139, 250, 0.2);
+}
+
+/* Ensure all select and options have dark backgrounds and readable white text */
+select,
+.modal-field-row select,
+.admin-card-role-select,
+#modalGroupType,
+#quickAddRole {
+    background-color: #1e293b !important;
+    color: #f8fafc !important;
+    border: 1px solid rgba(124, 58, 237, 0.3) !important;
+    cursor: pointer;
+}
+
+select:focus,
+.modal-field-row select:focus,
+.admin-card-role-select:focus,
+#modalGroupType:focus,
+#quickAddRole:focus {
+    border-color: #a78bfa !important;
+    background-color: #0f172a !important;
+    box-shadow: 0 0 0 2px rgba(167, 139, 250, 0.3) !important;
+}
+
+select option,
+.modal-field-row select option,
+.admin-card-role-select option,
+#modalGroupType option,
+#quickAddRole option {
+    background-color: #0f172a !important;
+    color: #ffffff !important;
+    font-size: 0.9rem !important;
+    padding: 10px 14px !important;
 }
 
 .modal-members-header {
@@ -631,14 +666,25 @@
 }
 
 .admin-card-role-select {
-    padding: 4px 8px;
-    background: rgba(255, 255, 255, 0.06);
-    border: 1px solid rgba(255, 255, 255, 0.12);
+    padding: 6px 10px;
+    background-color: #1e293b !important;
+    border: 1px solid rgba(124, 58, 237, 0.3) !important;
     border-radius: 6px;
-    color: #f1f5f9;
-    font-size: 0.8rem;
+    color: #f8fafc !important;
+    font-size: 0.82rem;
     outline: none;
     cursor: pointer;
+}
+
+.admin-card-role-select:focus {
+    border-color: #a78bfa !important;
+    background-color: #0f172a !important;
+}
+
+.admin-card-role-select option {
+    background-color: #0f172a !important;
+    color: #ffffff !important;
+    padding: 8px 12px !important;
 }
 
 .admin-card-remove-btn {
