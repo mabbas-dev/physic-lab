@@ -27,8 +27,17 @@ function hideLoginOverlay() {
 // ---- Admin Login ----
 async function handleLogin(e) {
     e.preventDefault();
-    const password = document.getElementById('adminPassword').value;
+    const passwordInput = document.getElementById('adminPassword');
+    const password = passwordInput.value.trim();
     const loginBtn = document.getElementById('loginBtn');
+    const errorEl = document.getElementById('loginErrorMsg');
+
+    // Reset error styles
+    passwordInput.classList.remove('error');
+    if (errorEl) {
+        errorEl.classList.remove('visible');
+        errorEl.textContent = '';
+    }
 
     loginBtn.disabled = true;
     loginBtn.textContent = 'Verifying...';
@@ -46,7 +55,23 @@ async function handleLogin(e) {
             localStorage.setItem('physics_admin_token', adminToken);
             hideLoginOverlay();
             loadAdminData();
+            Swal.fire({
+                icon: 'success',
+                title: 'Welcome, Admin!',
+                text: 'Authentication successful.',
+                timer: 1500,
+                showConfirmButton: false,
+                background: '#1a1f35',
+                color: '#f1f5f9',
+            });
         } else {
+            // Wrong Password
+            passwordInput.classList.add('error');
+            passwordInput.select();
+            if (errorEl) {
+                errorEl.textContent = '❌ ' + (data.message || 'Incorrect admin password. Please try again.');
+                errorEl.classList.add('visible');
+            }
             Swal.fire({
                 icon: 'error',
                 title: 'Access Denied',
@@ -56,10 +81,15 @@ async function handleLogin(e) {
             });
         }
     } catch (err) {
+        passwordInput.classList.add('error');
+        if (errorEl) {
+            errorEl.textContent = '❌ Server connection failed. Check your internet or backend status.';
+            errorEl.classList.add('visible');
+        }
         Swal.fire({
             icon: 'error',
             title: 'Connection Error',
-            text: 'Could not communicate with the server.',
+            text: 'Could not communicate with the server: ' + err.message,
             background: '#1a1f35',
             color: '#f1f5f9',
         });

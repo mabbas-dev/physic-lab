@@ -22,6 +22,17 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Middleware to normalize Vercel serverless rewritten paths
+app.use((req, res, next) => {
+    const matched = req.headers['x-matched-path'] || req.headers['x-forwarded-uri'];
+    if (matched) {
+        req.url = matched.split('?')[0];
+    } else if (req.query && req.query.__route) {
+        req.url = '/api/' + req.query.__route;
+    }
+    next();
+});
+
 // Serve admin page on /admin route
 app.get('/admin', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'admin.html'));
@@ -76,13 +87,13 @@ function verifyAdminAuth(req, res, next) {
 }
 
 // GET all groups (Public API)
-app.get('/api/groups', (req, res) => {
+app.get(['/api/groups', '/groups'], (req, res) => {
     const db = readDB();
     res.json({ success: true, groups: db.groups, nextGroupId: db.nextGroupId });
 });
 
 // Check if a reg no already exists (Public & Admin API)
-app.get('/api/check-reg/:regNo', (req, res) => {
+app.get(['/api/check-reg/:regNo', '/check-reg/:regNo'], (req, res) => {
     const db = readDB();
     const regNo = req.params.regNo.trim().toUpperCase();
     const excludeGroupId = req.query.excludeGroupId ? parseInt(req.query.excludeGroupId) : null;
@@ -104,7 +115,7 @@ app.get('/api/check-reg/:regNo', (req, res) => {
 });
 
 // Register a new group/individual (Public API)
-app.post('/api/register', (req, res) => {
+app.post(['/api/register', '/register'], (req, res) => {
     // Check deadline on backend (7 Oct 2026 09:00:00 PKT / UTC+5)
     const deadline = new Date('2026-10-07T09:00:00+05:00');
     if (new Date() > deadline) {
@@ -199,7 +210,7 @@ app.post('/api/register', (req, res) => {
 // ============================================
 
 // Admin Login
-app.post('/api/admin/login', (req, res) => {
+app.post(['/api/admin/login', '/admin/login'], (req, res) => {
     const { password } = req.body;
     if (!password) {
         return res.status(400).json({ success: false, message: 'Password is required.' });
@@ -215,13 +226,13 @@ app.post('/api/admin/login', (req, res) => {
 });
 
 // Admin: Get Raw DB
-app.get('/api/admin/db', verifyAdminAuth, (req, res) => {
+app.get(['/api/admin/db', '/admin/db'], verifyAdminAuth, (req, res) => {
     const db = readDB();
     res.json({ success: true, data: db });
 });
 
 // Admin: Save Raw DB JSON
-app.post('/api/admin/db', verifyAdminAuth, (req, res) => {
+app.post(['/api/admin/db', '/admin/db'], verifyAdminAuth, (req, res) => {
     const { rawData } = req.body;
     try {
         let parsed;
@@ -243,7 +254,7 @@ app.post('/api/admin/db', verifyAdminAuth, (req, res) => {
 });
 
 // Admin: Add Group (Bypasses deadline, validates duplicates)
-app.post('/api/admin/group', verifyAdminAuth, (req, res) => {
+app.post(['/api/admin/group', '/admin/group'], verifyAdminAuth, (req, res) => {
     const { type, groupName, members } = req.body;
     if (!members || !Array.isArray(members) || members.length === 0) {
         return res.status(400).json({ success: false, message: 'At least 1 member is required.' });
@@ -318,7 +329,7 @@ app.post('/api/admin/group', verifyAdminAuth, (req, res) => {
 });
 
 // Admin: Edit Group (Validates duplicates across other groups)
-app.put('/api/admin/group/:id', verifyAdminAuth, (req, res) => {
+app.put(['/api/admin/group/:id', '/admin/group/:id'], verifyAdminAuth, (req, res) => {
     const groupId = parseInt(req.params.id);
     const { groupName, type, members } = req.body;
 
@@ -394,7 +405,7 @@ app.put('/api/admin/group/:id', verifyAdminAuth, (req, res) => {
 });
 
 // Admin: Add single member to existing group
-app.post('/api/admin/group/:id/member', verifyAdminAuth, (req, res) => {
+app.post(['/api/admin/group/:id/member', '/admin/group/:id/member'], verifyAdminAuth, (req, res) => {
     const groupId = parseInt(req.params.id);
     const { name, regNo, whatsapp, role } = req.body;
 
@@ -445,7 +456,7 @@ app.post('/api/admin/group/:id/member', verifyAdminAuth, (req, res) => {
 });
 
 // Admin: Delete Group
-app.delete('/api/admin/group/:id', verifyAdminAuth, (req, res) => {
+app.delete(['/api/admin/group/:id', '/admin/group/:id'], verifyAdminAuth, (req, res) => {
     const groupId = parseInt(req.params.id);
     const db = readDB();
     const index = db.groups.findIndex(g => g.id === groupId);
@@ -461,7 +472,7 @@ app.delete('/api/admin/group/:id', verifyAdminAuth, (req, res) => {
 });
 
 // Public Delete endpoint (compatibility)
-app.delete('/api/groups/:id', verifyAdminAuth, (req, res) => {
+app.delete(['/api/groups/:id', '/groups/:id'], verifyAdminAuth, (req, res) => {
     const groupId = parseInt(req.params.id);
     const db = readDB();
     const index = db.groups.findIndex(g => g.id === groupId);
@@ -473,7 +484,7 @@ app.delete('/api/groups/:id', verifyAdminAuth, (req, res) => {
     res.json({ success: true, message: 'Group deleted successfully.' });
 });
 
-if (require.main === module || !IS_VERCEL) {
+if (require.main === module) {
     initDB();
     app.listen(PORT, () => {
         console.log(`\nPhysics Lab Registration Server is running!`);

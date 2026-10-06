@@ -76,6 +76,41 @@
     box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.15);
 }
 
+.admin-input-group input.error {
+    border-color: #ef4444 !important;
+    background: rgba(239, 68, 68, 0.1) !important;
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.25) !important;
+}
+
+.login-error-msg {
+    display: none;
+    font-size: 0.82rem;
+    color: #f87171;
+    margin-top: 10px;
+    padding: 8px 12px;
+    background: rgba(239, 68, 68, 0.15);
+    border: 1px solid rgba(239, 68, 68, 0.35);
+    border-radius: 8px;
+    text-align: center;
+    font-weight: 500;
+}
+
+.login-error-msg.visible {
+    display: block;
+    animation: loginShake 0.4s ease;
+}
+
+@keyframes loginShake {
+    0%, 100% { transform: translateX(0); }
+    20%, 60% { transform: translateX(-8px); }
+    40%, 80% { transform: translateX(8px); }
+}
+
+/* Ensure SweetAlert dialogs are ALWAYS on top of login overlay and modals */
+.swal2-container {
+    z-index: 100000 !important;
+}
+
 .admin-hint {
     font-size: 0.75rem !important;
     color: #64748b !important;
