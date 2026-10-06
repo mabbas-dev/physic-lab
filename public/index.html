@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Physics Lab Registration - Fall 2026 | BS Software Engineering</title>
+    <meta name="description" content="Physics Lab Group Registration System for Fall 2026 - BS Software Engineering, Ibadat International University Islamabad">
+    <link rel="icon" href="iiui_logo.jpeg" type="image/jpeg">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+</head>
+<body>
+    <!-- Animated Background Particles -->
+    <div class="bg-particles" id="bgParticles"></div>
+
+    <!-- Welcome Popup Overlay -->
+    <div class="welcome-overlay" id="welcomeOverlay">
+        <div class="welcome-popup">
+            <div class="welcome-popup-header">
+                <span class="welcome-icon">&#9888;</span>
+                <h2>Important Notice</h2>
+            </div>
+            <div class="welcome-popup-body">
+                <p>Before you register, please keep in mind:</p>
+                <ul>
+                    <li>Discuss with your classmates <strong>before</strong> forming a group.</li>
+                    <li><strong>Once registered, teams CANNOT be changed later.</strong></li>
+                    <li>Minimum <strong>2</strong> members and maximum <strong>5</strong> members per team.</li>
+                    <li>Individual registration counts as a single-person group.</li>
+                    <li>A student can only be part of <strong>one</strong> group.</li>
+                </ul>
+                <div class="welcome-highlight">
+                    <p><strong>The final revision of groups is made by Sir.</strong></p>
+                    <p class="good-luck">GOOD LUCK FOR YOUR LABS!</p>
+                    <p class="cr-note">— Your CR, <strong>M ABBAS</strong></p>
+                </div>
+            </div>
+            <button class="welcome-btn" id="welcomeBtn" onclick="closeWelcomePopup()">
+                I Understand, Let's Go
+            </button>
+        </div>
+    </div>
+
+    <!-- Header -->
+    <header class="header" id="header">
+        <div class="header-content">
+            <div class="logo-section">
+                <img src="iiui_logo.jpeg" alt="IIUI Logo" class="university-logo">
+            </div>
+            <div class="header-text">
+                <h1 class="main-title">PHYSICS LAB — FALL 2026</h1>
+                <p class="sub-title">BS SOFTWARE ENGINEERING</p>
+                <p class="instructor">Instructor: <strong>Engr. Jawad Sager</strong></p>
+            </div>
+        </div>
+    </header>
+
+    <!-- Countdown Timer -->
+    <div class="countdown-section" id="countdownSection">
+        <div class="countdown-inner">
+            <p class="countdown-label">Registration Closes In</p>
+            <div class="countdown-timer" id="countdownTimer">
+                <div class="countdown-unit">
+                    <span class="countdown-value" id="cdHours">00</span>
+                    <span class="countdown-unit-label">Hours</span>
+                </div>
+                <div class="countdown-separator">:</div>
+                <div class="countdown-unit">
+                    <span class="countdown-value" id="cdMinutes">00</span>
+                    <span class="countdown-unit-label">Minutes</span>
+                </div>
+                <div class="countdown-separator">:</div>
+                <div class="countdown-unit">
+                    <span class="countdown-value" id="cdSeconds">00</span>
+                    <span class="countdown-unit-label">Seconds</span>
+                </div>
+            </div>
+            <p class="countdown-deadline">Deadline: 7th October 2026, 9:00 AM</p>
+        </div>
+    </div>
+
+    <!-- Time Expired Banner (hidden by default) -->
+    <div class="expired-banner hidden" id="expiredBanner">
+        <span class="expired-icon">&#10006;</span>
+        <p>Registration period has ended. No more registrations are accepted.</p>
+    </div>
+
+    <!-- Main Content -->
+    <main class="main-container">
+        <!-- Info Banner -->
+        <div class="info-banner" id="infoBanner">
+            <div class="info-icon">&#9432;</div>
+            <p>Discuss among yourselves first. From each group, <strong>one person</strong> should register the group including all members. All fields are <strong>required</strong>.</p>
+        </div>
+
+        <!-- Registration Section (will be hidden after deadline) -->
+        <section class="registration-section" id="registrationSection">
+            <h2 class="section-title">
+                <span class="title-icon">&#9998;</span>
+                Group Registration
+            </h2>
+
+            <!-- Registration Type Selector -->
+            <div class="type-selector" id="typeSelector">
+                <p class="type-label">How would you like to register?</p>
+                <div class="type-buttons">
+                    <button class="type-btn" id="btnIndividual" onclick="selectType('individual')">
+                        <div class="type-btn-icon">
+                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/></svg>
+                        </div>
+                        <div class="type-btn-text">
+                            <strong>Individual</strong>
+                            <span>Register alone</span>
+                        </div>
+                    </button>
+                    <button class="type-btn" id="btnTeam" onclick="selectType('team')">
+                        <div class="type-btn-icon">
+                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="7" r="3"/><circle cx="17" cy="7" r="3"/><path d="M3 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/><path d="M17 11a4 4 0 014 4v2"/></svg>
+                        </div>
+                        <div class="type-btn-text">
+                            <strong>Team</strong>
+                            <span>2 to 5 members</span>
+                        </div>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Registration Form -->
+            <form class="registration-form hidden" id="registrationForm" onsubmit="handleSubmit(event)">
+                <div class="form-header" id="formHeader">
+                    <h3 id="formTitle">Registration Form</h3>
+                    <button type="button" class="back-btn" onclick="goBack()">
+                        &#8592; Back
+                    </button>
+                </div>
+
+                <!-- Members Container -->
+                <div class="members-container" id="membersContainer">
+                    <!-- Member forms will be injected here -->
+                </div>
+
+                <!-- Add Member Button (Team only) -->
+                <button type="button" class="add-member-btn hidden" id="addMemberBtn" onclick="addMember()">
+                    <span class="add-icon">+</span> Add Member
+                    <span class="member-count" id="memberCountBadge"></span>
+                </button>
+
+                <!-- Submit Button -->
+                <button type="submit" class="submit-btn" id="submitBtn">
+                    <span class="submit-text">Register</span>
+                    <span class="submit-loader hidden" id="submitLoader"></span>
+                </button>
+            </form>
+        </section>
+
+        <!-- Registered Groups Section -->
+        <section class="groups-section" id="groupsSection">
+            <h2 class="section-title">
+                <span class="title-icon">&#9776;</span>
+                Registered Groups
+                <span class="group-count-badge" id="totalGroupsBadge">0</span>
+            </h2>
+            <div class="groups-grid" id="groupsGrid">
+                <!-- Groups will be rendered here -->
+            </div>
+            <div class="no-groups hidden" id="noGroups">
+                <div class="no-groups-icon">&#9744;</div>
+                <p>No groups registered yet. Be the first!</p>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <p class="footer-main">Physics Lab Registration System &copy; Fall 2026 — IIUI</p>
+        <p class="footer-credit">Crafted with sleepless nights &amp; caffeine by <strong>CR. M ABBAS</strong> — because who else would do it?</p>
+    </footer>
+
+    <script src="app.js"></script>
+</body>
+</html>
