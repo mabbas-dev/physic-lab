@@ -21,3 +21,19 @@ npm install
 npm start
 ```
 Open `http://localhost:3000` in your browser.
+
+## Vercel Deployment & Permanent Database Setup
+
+On Vercel Serverless, local disk storage (`/tmp`) is ephemeral and resets during cold starts. To keep student registrations permanently saved:
+
+### 1-Click Vercel KV Setup (Recommended - 100% Free):
+1. Open your project on [vercel.com](https://vercel.com/dashboard).
+2. Go to the **Storage** tab at the top.
+3. Click **Create** or **Connect Store** → Select **KV**.
+4. Click **Create & Connect**. Vercel will automatically connect `KV_REST_API_URL` and `KV_REST_API_TOKEN` to your project!
+
+### Alternative: Free Upstash Redis:
+1. Create a free database on [upstash.com](https://upstash.com).
+2. Under the **REST API** section, copy `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN`.
+3. Add them under Vercel → **Project Settings** → **Environment Variables**, then redeploy.
+

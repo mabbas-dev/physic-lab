@@ -130,6 +130,9 @@ async function loadAdminData() {
         const data = await res.json();
         if (data.success) {
             currentDb = data.data;
+            if (data.storage) {
+                renderStorageStatus(data.storage);
+            }
             renderAdminStats();
             renderAdminGroups();
             renderRawJson();
@@ -137,6 +140,83 @@ async function loadAdminData() {
     } catch (e) {
         console.error('Failed to load admin data:', e);
     }
+}
+
+// ---- Storage Status Indicator ----
+let currentStorageInfo = null;
+
+function renderStorageStatus(storage) {
+    if (!storage) return;
+    currentStorageInfo = storage;
+    const badge = document.getElementById('storageStatusBadge');
+    const banner = document.getElementById('storageWarningBanner');
+    if (!badge) return;
+
+    badge.classList.remove('hidden');
+
+    if (storage.isPersistent) {
+        badge.className = 'storage-status-pill storage-status-ok';
+        badge.innerHTML = `🟢 <span>${storage.name}</span> <small>(Persistent)</small>`;
+        if (banner) banner.classList.add('hidden');
+    } else if (storage.isVercel) {
+        badge.className = 'storage-status-pill storage-status-warn';
+        badge.innerHTML = `⚠️ <span>Temporary Storage</span> <small>(Click to Fix)</small>`;
+        if (banner) {
+            banner.classList.remove('hidden');
+            banner.innerHTML = `
+                <div class="storage-banner-content">
+                    <span class="storage-banner-icon">⚠️</span>
+                    <div class="storage-banner-text">
+                        <strong>Important: Temporary Serverless Storage Detected!</strong>
+                        <p>Your app is on Vercel, which resets local files whenever serverless containers sleep. To prevent submissions from disappearing, connect <strong>Vercel KV</strong> or <strong>Upstash Redis</strong> (Free & 1-minute setup).</p>
+                    </div>
+                    <button class="storage-banner-btn" onclick="showStorageSetupModal()">How to Fix (1-Min Guide)</button>
+                </div>
+            `;
+        }
+    } else {
+        badge.className = 'storage-status-pill storage-status-local';
+        badge.innerHTML = `💻 <span>Local File System</span>`;
+        if (banner) banner.classList.add('hidden');
+    }
+}
+
+function showStorageSetupModal() {
+    Swal.fire({
+        title: 'Permanent Database Setup for Vercel',
+        html: `
+            <div style="text-align: left; font-size: 0.92rem; line-height: 1.6; color: #cbd5e1;">
+                <p style="margin-bottom: 12px; color: #f8fafc;">
+                    Vercel serverless functions restart periodically. To ensure student registrations are <strong>never lost</strong>, connect a free Cloud KV database in 3 quick steps:
+                </p>
+                <div style="background: rgba(124, 58, 237, 0.12); border: 1px solid rgba(124, 58, 237, 0.3); border-radius: 10px; padding: 14px; margin-bottom: 14px;">
+                    <div style="font-weight: 700; color: #c084fc; margin-bottom: 6px;">⚡ Method 1 (Recommended): 1-Click Vercel KV</div>
+                    <ol style="margin: 0; padding-left: 20px;">
+                        <li>Open your project on <a href="https://vercel.com/dashboard" target="_blank" style="color: #38bdf8; text-decoration: underline;">vercel.com</a></li>
+                        <li>Click the <strong>Storage</strong> tab at the top</li>
+                        <li>Click <strong>Create</strong> or <strong>Connect Store</strong> &rarr; Select <strong>KV</strong></li>
+                        <li>Click <strong>Create & Connect</strong> (Connects to this project automatically)</li>
+                    </ol>
+                </div>
+                <div style="background: rgba(16, 185, 129, 0.12); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 10px; padding: 14px; margin-bottom: 14px;">
+                    <div style="font-weight: 700; color: #34d399; margin-bottom: 6px;">✨ Method 2: Free Upstash Redis</div>
+                    <ol style="margin: 0; padding-left: 20px;">
+                        <li>Sign up at <a href="https://upstash.com" target="_blank" style="color: #38bdf8; text-decoration: underline;">upstash.com</a> (100% free)</li>
+                        <li>Create a database &rarr; Scroll down to <strong>REST API</strong></li>
+                        <li>Copy <code>UPSTASH_REDIS_REST_URL</code> and <code>UPSTASH_REDIS_REST_TOKEN</code></li>
+                        <li>Add them under Vercel &rarr; Settings &rarr; Environment Variables, then redeploy!</li>
+                    </ol>
+                </div>
+                <p style="font-size: 0.85rem; color: #94a3b8; margin: 0;">
+                    Once connected, all student registrations will automatically persist forever!
+                </p>
+            </div>
+        `,
+        confirmButtonText: 'Got It!',
+        background: '#1a1f35',
+        color: '#f1f5f9',
+        width: 600
+    });
 }
 
 function renderAdminStats() {

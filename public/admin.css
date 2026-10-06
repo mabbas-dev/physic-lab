@@ -827,3 +827,111 @@ select option,
     opacity: 1 !important;
     background: #ffffff !important;
 }
+
+/* ---------- Storage Status Badge & Banner ---------- */
+.storage-status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    user-select: none;
+}
+
+.storage-status-pill small {
+    opacity: 0.8;
+    font-weight: 400;
+}
+
+.storage-status-pill:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.storage-status-ok {
+    background: rgba(16, 185, 129, 0.15);
+    border: 1px solid rgba(16, 185, 129, 0.4);
+    color: #34d399;
+}
+
+.storage-status-warn {
+    background: rgba(245, 158, 11, 0.15);
+    border: 1px solid rgba(245, 158, 11, 0.45);
+    color: #fbbf24;
+    animation: warnPulse 2s infinite ease-in-out;
+}
+
+@keyframes warnPulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.3); }
+    50% { box-shadow: 0 0 10px 2px rgba(245, 158, 11, 0.35); }
+}
+
+.storage-status-local {
+    background: rgba(148, 163, 184, 0.15);
+    border: 1px solid rgba(148, 163, 184, 0.3);
+    color: #94a3b8;
+}
+
+.admin-storage-banner {
+    margin-bottom: 24px;
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.12), rgba(220, 38, 38, 0.08));
+    border: 1px solid rgba(245, 158, 11, 0.4);
+    border-radius: 14px;
+    padding: 16px 20px;
+    backdrop-filter: blur(8px);
+}
+
+.storage-banner-content {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.storage-banner-icon {
+    font-size: 1.8rem;
+    flex-shrink: 0;
+}
+
+.storage-banner-text {
+    flex: 1;
+    min-width: 250px;
+}
+
+.storage-banner-text strong {
+    color: #fde68a;
+    font-size: 0.98rem;
+    display: block;
+    margin-bottom: 4px;
+}
+
+.storage-banner-text p {
+    color: #cbd5e1;
+    font-size: 0.86rem;
+    margin: 0;
+    line-height: 1.45;
+}
+
+.storage-banner-btn {
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    color: #0f172a;
+    font-weight: 700;
+    font-size: 0.85rem;
+    padding: 9px 18px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+
+.storage-banner-btn:hover {
+    filter: brightness(1.1);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 14px rgba(245, 158, 11, 0.4);
+}
+

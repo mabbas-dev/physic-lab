@@ -53,6 +53,7 @@
                 </div>
             </div>
             <div class="admin-nav-right">
+                <div id="storageStatusBadge" class="storage-status-pill hidden" onclick="showStorageSetupModal()" title="Click to view storage details"></div>
                 <button class="admin-btn-ghost" onclick="window.open('/', '_blank')">View Website &#8599;</button>
                 <button class="admin-btn-danger" onclick="handleLogout()">Logout</button>
             </div>
@@ -60,6 +61,9 @@
 
         <!-- Main Admin Content -->
         <main class="admin-container">
+            <!-- Storage Alert Banner -->
+            <div id="storageWarningBanner" class="admin-storage-banner hidden"></div>
+
             <!-- Stats Row -->
             <div class="admin-stats-grid">
                 <div class="stat-card">
