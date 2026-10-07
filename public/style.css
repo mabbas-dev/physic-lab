@@ -1311,6 +1311,12 @@ body {
     background: #ffffff !important;
 }
 
+#pdfPage {
+    width: 210mm !important;
+    background: #ffffff !important;
+    display: block !important;
+}
+
 .pdf-page {
     background: #ffffff !important;
     color: #000000 !important;

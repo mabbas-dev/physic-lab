@@ -1154,7 +1154,13 @@ function generateAndDownloadPDF() {
     groups.forEach(g => totalStudents += (g.members || []).length);
 
     const container = document.getElementById('pdfReportContainer');
-    container.innerHTML = buildOfficialPdfPagesHtml(groups, totalStudents);
+    let element = document.getElementById('pdfPage');
+    if (!element) {
+        element = document.createElement('div');
+        element.id = 'pdfPage';
+        container.appendChild(element);
+    }
+    element.innerHTML = buildOfficialPdfPagesHtml(groups, totalStudents);
 
     // Temporarily bring into viewport under SweetAlert overlay so html2canvas captures properly
     container.classList.add('pdf-rendering');
@@ -1184,7 +1190,7 @@ function generateAndDownloadPDF() {
         didOpen: () => Swal.showLoading()
     });
 
-    html2pdf().set(opt).from(container).save().then(() => {
+    html2pdf().set(opt).from(element).save().then(() => {
         container.classList.remove('pdf-rendering');
         Swal.fire({ icon: 'success', title: 'Downloaded!', timer: 2000, showConfirmButton: false, background: '#1a1f35', color: '#f1f5f9' });
     }).catch(err => {
