@@ -541,8 +541,117 @@ function renderGroups(groups) {
 }
 
 // ============================================
-// PDF GENERATION (Exact layout from template)
 // ============================================
+// PDF GENERATION (Multi-page, Zero-crop, Group-intact Layout)
+// ============================================
+function buildOfficialPdfPagesHtml(groups, totalStudents) {
+    const MAX_ROWS_PAGE_1 = 18;
+    const MAX_ROWS_PAGE_N = 25;
+
+    const pages = [];
+    let currentPage = [];
+    let currentRowCount = 0;
+
+    groups.forEach((group) => {
+        const memberCount = (group.members || []).length;
+        const maxForThisPage = pages.length === 0 ? MAX_ROWS_PAGE_1 : MAX_ROWS_PAGE_N;
+
+        if (currentPage.length > 0 && (currentRowCount + memberCount > maxForThisPage)) {
+            pages.push(currentPage);
+            currentPage = [group];
+            currentRowCount = memberCount;
+        } else {
+            currentPage.push(group);
+            currentRowCount += memberCount;
+        }
+    });
+
+    if (currentPage.length > 0) {
+        pages.push(currentPage);
+    }
+
+    const totalPages = pages.length;
+    let fullHtml = '';
+
+    pages.forEach((pageGroups, pageIdx) => {
+        const isFirstPage = pageIdx === 0;
+        const pageNum = pageIdx + 1;
+
+        let tableRowsHtml = '';
+        pageGroups.forEach((group) => {
+            const members = group.members || [];
+            let hasLeaderAssigned = false;
+            members.forEach((member, mIdx) => {
+                const isLeaderRole = member.role === 'Team Leader' || member.role === 'Individual';
+                const isLeader = group.type === 'individual' || (isLeaderRole && !hasLeaderAssigned);
+                if (isLeader) hasLeaderAssigned = true;
+
+                tableRowsHtml += '<tr>';
+                if (mIdx === 0) {
+                    tableRowsHtml += `<td rowspan="${members.length}" class="pdf-group-cell">${escapeHTML(group.groupName)}</td>`;
+                }
+                tableRowsHtml += `<td class="${isLeader ? 'pdf-role-leader' : 'pdf-role-member'}">${isLeader ? 'Leader' : 'Member'}</td>`;
+                tableRowsHtml += `<td class="${isLeader ? 'pdf-name-leader' : 'pdf-name-member'}">${escapeHTML(member.name)}</td>`;
+                tableRowsHtml += `<td class="pdf-reg-cell">${escapeHTML(member.regNo)}</td>`;
+                tableRowsHtml += '</tr>';
+            });
+        });
+
+        fullHtml += `
+        <div class="pdf-page">
+            ${isFirstPage ? `
+            <div class="pdf-header-wrapper">
+                <h1 class="pdf-uni-name">Ibadat International University Islamabad</h1>
+                <h2 class="pdf-dept-name">Department of Software Engineering</h2>
+                <h3 class="pdf-doc-title">Open-Ended Lab Project Groups</h3>
+                <div class="pdf-divider"></div>
+            </div>
+
+            <div class="pdf-meta-box">
+                <p><strong>Course:</strong> Applied Physics (BCS-6101) - Lab</p>
+                <p><strong>Session / Semester / Section:</strong> Fall 2026 | 1st | B (BS Software Engineering)</p>
+                <p><strong>Instructor:</strong> Engr. Jawad Sager, Junior Lecturer</p>
+                <p class="pdf-total-line"><strong>Total: ${totalStudents} students in ${groups.length} groups</strong></p>
+            </div>
+            ` : `
+            <div class="pdf-sub-header">
+                <div class="pdf-sub-header-left">
+                    <span class="pdf-sub-uni">Ibadat International University Islamabad</span>
+                    <span class="pdf-sub-dept">Department of Software Engineering &bull; Applied Physics Lab</span>
+                </div>
+                <div class="pdf-sub-header-right">
+                    <span>Open-Ended Lab Project Groups</span>
+                </div>
+            </div>
+            <div class="pdf-divider" style="margin-bottom: 8px;"></div>
+            `}
+
+            <table class="pdf-table">
+                <thead>
+                    <tr>
+                        <th style="width: 15%;">Group</th>
+                        <th style="width: 18%;">Role</th>
+                        <th style="width: 45%;">Student Name</th>
+                        <th style="width: 22%;">Reg No.</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${tableRowsHtml}
+                </tbody>
+            </table>
+
+            <div class="pdf-footer">
+                <span>Physics Lab Registration System &bull; Fall 2026</span>
+                <span>Page ${pageNum} of ${totalPages}</span>
+            </div>
+        </div>
+        ${pageNum < totalPages ? '<div class="html2pdf__page-break"></div>' : ''}
+        `;
+    });
+
+    return fullHtml;
+}
+
 function generateAndDownloadPDF() {
     if (!currentGroups || currentGroups.length === 0) {
         Swal.fire({
@@ -556,61 +665,16 @@ function generateAndDownloadPDF() {
     }
 
     let totalStudents = 0;
-    const tbody = document.getElementById('pdfTableBody');
-    tbody.innerHTML = '';
-
-    currentGroups.forEach((group) => {
-        const members = group.members || [];
-        totalStudents += members.length;
-        const rowSpanCount = members.length;
-
-        members.forEach((member, mIndex) => {
-            const tr = document.createElement('tr');
-
-            // First cell: Group column with rowspan
-            if (mIndex === 0) {
-                const tdGroup = document.createElement('td');
-                tdGroup.rowSpan = rowSpanCount;
-                tdGroup.className = 'pdf-group-cell';
-                tdGroup.textContent = group.groupName;
-                tr.appendChild(tdGroup);
-            }
-
-            // Second cell: Role
-            const tdRole = document.createElement('td');
-            const isLeaderRole = member.role === 'Team Leader' || member.role === 'Individual';
-            const isLeader = group.type === 'individual' || (isLeaderRole && !hasLeaderAssigned);
-            if (isLeader) hasLeaderAssigned = true;
-            tdRole.className = isLeader ? 'pdf-role-leader' : 'pdf-role-member';
-            tdRole.textContent = isLeader ? 'Leader' : 'Member';
-            tr.appendChild(tdRole);
-
-            // Third cell: Student Name
-            const tdName = document.createElement('td');
-            tdName.className = isLeader ? 'pdf-name-leader' : 'pdf-name-member';
-            tdName.textContent = member.name;
-            tr.appendChild(tdName);
-
-            // Fourth cell: Reg No
-            const tdReg = document.createElement('td');
-            tdReg.className = 'pdf-reg-cell';
-            tdReg.textContent = member.regNo;
-            tr.appendChild(tdReg);
-
-            tbody.appendChild(tr);
-        });
-    });
-
-    document.getElementById('pdfTotalLine').innerHTML = `<strong>Total: ${totalStudents} students in ${currentGroups.length} groups</strong>`;
+    currentGroups.forEach(g => totalStudents += (g.members || []).length);
 
     const container = document.getElementById('pdfReportContainer');
-    const element = document.getElementById('pdfPage');
+    container.innerHTML = buildOfficialPdfPagesHtml(currentGroups, totalStudents);
 
     // Temporarily bring into viewport under SweetAlert overlay so html2canvas renders perfectly
     container.classList.add('pdf-rendering');
 
     const opt = {
-        margin: [8, 8, 8, 8],
+        margin: [6, 6, 6, 6],
         filename: `Physics_Lab_Groups_Fall_2026_${new Date().toISOString().slice(0, 10)}.pdf`,
         image: { type: 'jpeg', quality: 0.98 },
         html2canvas: {
@@ -621,7 +685,8 @@ function generateAndDownloadPDF() {
             scrollY: 0,
             backgroundColor: '#ffffff'
         },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+        pagebreak: { mode: ['css', 'legacy'] }
     };
 
     // Show loading toast
@@ -636,7 +701,7 @@ function generateAndDownloadPDF() {
         }
     });
 
-    html2pdf().set(opt).from(element).save().then(() => {
+    html2pdf().set(opt).from(container).save().then(() => {
         container.classList.remove('pdf-rendering');
         Swal.fire({
             icon: 'success',

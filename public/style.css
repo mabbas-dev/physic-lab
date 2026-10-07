@@ -1315,48 +1315,63 @@ body {
     background: #ffffff !important;
     color: #000000 !important;
     font-family: Arial, Helvetica, sans-serif !important;
-    padding: 12mm 15mm !important;
-    box-sizing: border-box;
+    padding: 10mm 12mm !important;
+    box-sizing: border-box !important;
+    width: 210mm !important;
+    position: relative !important;
+}
+
+.html2pdf__page-break {
+    page-break-after: always !important;
+    break-after: page !important;
+    height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    display: block !important;
+    clear: both !important;
 }
 
 .pdf-header-wrapper {
     text-align: center;
-    margin-bottom: 12px;
+    margin-bottom: 10px;
 }
 
 .pdf-uni-name {
-    font-size: 19pt !important;
+    font-size: 18pt !important;
     font-weight: 800 !important;
     color: #1b365d !important;
-    margin: 0 0 4px 0 !important;
+    margin: 0 0 3px 0 !important;
     font-family: Arial, sans-serif !important;
+    line-height: 1.2 !important;
 }
 
 .pdf-dept-name {
-    font-size: 13pt !important;
+    font-size: 12.5pt !important;
     font-weight: 800 !important;
     color: #000000 !important;
-    margin: 0 0 6px 0 !important;
+    margin: 0 0 4px 0 !important;
+    line-height: 1.2 !important;
 }
 
 .pdf-doc-title {
-    font-size: 14pt !important;
+    font-size: 13pt !important;
     font-weight: 800 !important;
     color: #000000 !important;
-    margin: 0 0 10px 0 !important;
+    margin: 0 0 8px 0 !important;
+    line-height: 1.2 !important;
 }
 
 .pdf-divider {
     height: 2.5px;
     background-color: #1b365d;
     width: 100%;
-    margin-bottom: 12px;
+    margin-bottom: 10px;
 }
 
 .pdf-meta-box {
-    font-size: 9.5pt !important;
-    line-height: 1.5 !important;
-    margin-bottom: 12px !important;
+    font-size: 9pt !important;
+    line-height: 1.45 !important;
+    margin-bottom: 10px !important;
     color: #1b365d !important;
 }
 
@@ -1373,38 +1388,81 @@ body {
 .pdf-total-line {
     color: #1b365d !important;
     font-weight: 800 !important;
-    margin-top: 4px !important;
+    margin-top: 3px !important;
+}
+
+/* Page 2+ Sub-Header */
+.pdf-sub-header {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: flex-end !important;
+    padding-bottom: 4px !important;
+    margin-bottom: 8px !important;
+    border-bottom: 2px solid #1b365d !important;
+}
+
+.pdf-sub-header-left {
+    display: flex !important;
+    flex-direction: column !important;
+}
+
+.pdf-sub-uni {
+    font-size: 11pt !important;
+    font-weight: 800 !important;
+    color: #1b365d !important;
+    font-family: Arial, sans-serif !important;
+    line-height: 1.2 !important;
+}
+
+.pdf-sub-dept {
+    font-size: 8.5pt !important;
+    font-weight: 600 !important;
+    color: #2d3748 !important;
+    line-height: 1.2 !important;
+}
+
+.pdf-sub-header-right {
+    font-size: 8.5pt !important;
+    font-weight: 700 !important;
+    color: #1b365d !important;
 }
 
 .pdf-table {
     width: 100% !important;
     border-collapse: collapse !important;
     border: 1.5px solid #4a5568 !important;
+    page-break-inside: auto !important;
+}
+
+.pdf-table tr {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
 }
 
 .pdf-table th {
     background-color: #1b365d !important;
     color: #ffffff !important;
-    font-size: 10pt !important;
+    font-size: 9.5pt !important;
     font-weight: 700 !important;
-    padding: 8px 6px !important;
+    padding: 7px 6px !important;
     text-align: center !important;
     border: 1px solid #4a5568 !important;
 }
 
 .pdf-table td {
     border: 1px solid #718096 !important;
-    padding: 6px 10px !important;
-    font-size: 9.5pt !important;
+    padding: 5px 8px !important;
+    font-size: 9pt !important;
     color: #000000 !important;
     background-color: #ffffff !important;
+    line-height: 1.3 !important;
 }
 
 .pdf-group-cell {
     text-align: center !important;
     vertical-align: middle !important;
     font-weight: 800 !important;
-    font-size: 10.5pt !important;
+    font-size: 10pt !important;
     color: #000000 !important;
     background-color: #ffffff !important;
 }
@@ -1435,5 +1493,16 @@ body {
     text-align: center !important;
     font-family: Arial, sans-serif !important;
     color: #000000 !important;
+}
+
+.pdf-footer {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    font-size: 8pt !important;
+    color: #718096 !important;
+    margin-top: 8px !important;
+    padding-top: 5px !important;
+    border-top: 1px solid #cbd5e1 !important;
 }
 

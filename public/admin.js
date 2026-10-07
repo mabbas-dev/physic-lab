@@ -1028,8 +1028,121 @@ async function confirmDeleteGroup(id) {
 }
 
 // ============================================
-// PDF GENERATION (Admin side - Exact university layout)
+// PDF & DOCX EXPORT SYSTEM (Official Departmental Layout)
 // ============================================
+
+function buildOfficialPdfPagesHtml(groups, totalStudents) {
+    // Dynamic group chunking: Ensure page ends with a complete group and next page starts with a group.
+    // Page 1 has full university header + metadata box (~250px overhead)
+    // Subsequent pages have compact sub-header + table header (~100px overhead)
+    const MAX_ROWS_PAGE_1 = 18;
+    const MAX_ROWS_PAGE_N = 25;
+
+    const pages = [];
+    let currentPage = [];
+    let currentRowCount = 0;
+
+    groups.forEach((group) => {
+        const memberCount = (group.members || []).length;
+        const maxForThisPage = pages.length === 0 ? MAX_ROWS_PAGE_1 : MAX_ROWS_PAGE_N;
+
+        // If adding this group would exceed page row limit and current page isn't empty, push to next page
+        if (currentPage.length > 0 && (currentRowCount + memberCount > maxForThisPage)) {
+            pages.push(currentPage);
+            currentPage = [group];
+            currentRowCount = memberCount;
+        } else {
+            currentPage.push(group);
+            currentRowCount += memberCount;
+        }
+    });
+
+    if (currentPage.length > 0) {
+        pages.push(currentPage);
+    }
+
+    const totalPages = pages.length;
+    let fullHtml = '';
+
+    pages.forEach((pageGroups, pageIdx) => {
+        const isFirstPage = pageIdx === 0;
+        const pageNum = pageIdx + 1;
+
+        let tableRowsHtml = '';
+        pageGroups.forEach((group) => {
+            const members = group.members || [];
+            let hasLeaderAssigned = false;
+            members.forEach((member, mIdx) => {
+                const isLeaderRole = member.role === 'Team Leader' || member.role === 'Individual';
+                const isLeader = group.type === 'individual' || (isLeaderRole && !hasLeaderAssigned);
+                if (isLeader) hasLeaderAssigned = true;
+
+                tableRowsHtml += '<tr>';
+                if (mIdx === 0) {
+                    tableRowsHtml += `<td rowspan="${members.length}" class="pdf-group-cell">${escapeHtml(group.groupName)}</td>`;
+                }
+                tableRowsHtml += `<td class="${isLeader ? 'pdf-role-leader' : 'pdf-role-member'}">${isLeader ? 'Leader' : 'Member'}</td>`;
+                tableRowsHtml += `<td class="${isLeader ? 'pdf-name-leader' : 'pdf-name-member'}">${escapeHtml(member.name)}</td>`;
+                tableRowsHtml += `<td class="pdf-reg-cell">${escapeHtml(member.regNo)}</td>`;
+                tableRowsHtml += '</tr>';
+            });
+        });
+
+        fullHtml += `
+        <div class="pdf-page">
+            ${isFirstPage ? `
+            <div class="pdf-header-wrapper">
+                <h1 class="pdf-uni-name">Ibadat International University Islamabad</h1>
+                <h2 class="pdf-dept-name">Department of Software Engineering</h2>
+                <h3 class="pdf-doc-title">Open-Ended Lab Project Groups</h3>
+                <div class="pdf-divider"></div>
+            </div>
+
+            <div class="pdf-meta-box">
+                <p><strong>Course:</strong> Applied Physics (BCS-6101) - Lab</p>
+                <p><strong>Session / Semester / Section:</strong> Fall 2026 | 1st | B (BS Software Engineering)</p>
+                <p><strong>Instructor:</strong> Engr. Jawad Sager, Junior Lecturer</p>
+                <p class="pdf-total-line"><strong>Total: ${totalStudents} students in ${groups.length} groups</strong></p>
+            </div>
+            ` : `
+            <div class="pdf-sub-header">
+                <div class="pdf-sub-header-left">
+                    <span class="pdf-sub-uni">Ibadat International University Islamabad</span>
+                    <span class="pdf-sub-dept">Department of Software Engineering &bull; Applied Physics Lab</span>
+                </div>
+                <div class="pdf-sub-header-right">
+                    <span>Open-Ended Lab Project Groups</span>
+                </div>
+            </div>
+            <div class="pdf-divider" style="margin-bottom: 8px;"></div>
+            `}
+
+            <table class="pdf-table">
+                <thead>
+                    <tr>
+                        <th style="width: 15%;">Group</th>
+                        <th style="width: 18%;">Role</th>
+                        <th style="width: 45%;">Student Name</th>
+                        <th style="width: 22%;">Reg No.</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${tableRowsHtml}
+                </tbody>
+            </table>
+
+            <div class="pdf-footer">
+                <span>Physics Lab Registration System &bull; Fall 2026</span>
+                <span>Page ${pageNum} of ${totalPages}</span>
+            </div>
+        </div>
+        ${pageNum < totalPages ? '<div class="html2pdf__page-break"></div>' : ''}
+        `;
+    });
+
+    return fullHtml;
+}
+
 function generateAndDownloadPDF() {
     const groups = currentDb.groups || [];
     if (groups.length === 0) {
@@ -1038,57 +1151,16 @@ function generateAndDownloadPDF() {
     }
 
     let totalStudents = 0;
-    const tbody = document.getElementById('pdfTableBody');
-    tbody.innerHTML = '';
-
-    groups.forEach((group) => {
-        const members = group.members || [];
-        totalStudents += members.length;
-        const rowSpanCount = members.length;
-
-        let hasLeaderAssigned = false;
-        members.forEach((member, mIndex) => {
-            const tr = document.createElement('tr');
-            if (mIndex === 0) {
-                const tdGroup = document.createElement('td');
-                tdGroup.rowSpan = rowSpanCount;
-                tdGroup.className = 'pdf-group-cell';
-                tdGroup.textContent = group.groupName;
-                tr.appendChild(tdGroup);
-            }
-
-            const tdRole = document.createElement('td');
-            const isLeaderRole = member.role === 'Team Leader' || member.role === 'Individual';
-            const isLeader = group.type === 'individual' || (isLeaderRole && !hasLeaderAssigned);
-            if (isLeader) hasLeaderAssigned = true;
-            tdRole.className = isLeader ? 'pdf-role-leader' : 'pdf-role-member';
-            tdRole.textContent = isLeader ? 'Leader' : 'Member';
-            tr.appendChild(tdRole);
-
-            const tdName = document.createElement('td');
-            tdName.className = isLeader ? 'pdf-name-leader' : 'pdf-name-member';
-            tdName.textContent = member.name;
-            tr.appendChild(tdName);
-
-            const tdReg = document.createElement('td');
-            tdReg.className = 'pdf-reg-cell';
-            tdReg.textContent = member.regNo;
-            tr.appendChild(tdReg);
-
-            tbody.appendChild(tr);
-        });
-    });
-
-    document.getElementById('pdfTotalLine').innerHTML = `<strong>Total: ${totalStudents} students in ${groups.length} groups</strong>`;
+    groups.forEach(g => totalStudents += (g.members || []).length);
 
     const container = document.getElementById('pdfReportContainer');
-    const element = document.getElementById('pdfPage');
+    container.innerHTML = buildOfficialPdfPagesHtml(groups, totalStudents);
 
     // Temporarily bring into viewport under SweetAlert overlay so html2canvas captures properly
     container.classList.add('pdf-rendering');
 
     const opt = {
-        margin: [8, 8, 8, 8],
+        margin: [6, 6, 6, 6],
         filename: `Physics_Lab_Groups_Official_${new Date().toISOString().slice(0, 10)}.pdf`,
         image: { type: 'jpeg', quality: 0.98 },
         html2canvas: {
@@ -1099,7 +1171,8 @@ function generateAndDownloadPDF() {
             scrollY: 0,
             backgroundColor: '#ffffff'
         },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+        pagebreak: { mode: ['css', 'legacy'] }
     };
 
     Swal.fire({
@@ -1111,13 +1184,241 @@ function generateAndDownloadPDF() {
         didOpen: () => Swal.showLoading()
     });
 
-    html2pdf().set(opt).from(element).save().then(() => {
+    html2pdf().set(opt).from(container).save().then(() => {
         container.classList.remove('pdf-rendering');
         Swal.fire({ icon: 'success', title: 'Downloaded!', timer: 2000, showConfirmButton: false, background: '#1a1f35', color: '#f1f5f9' });
     }).catch(err => {
         container.classList.remove('pdf-rendering');
         Swal.fire({ icon: 'error', title: 'PDF Error', text: err.message, background: '#1a1f35', color: '#f1f5f9' });
     });
+}
+
+function generateAndDownloadDOCX() {
+    const groups = currentDb.groups || [];
+    if (groups.length === 0) {
+        Swal.fire({ icon: 'info', title: 'No Groups', text: 'No groups available to export.', background: '#1a1f35', color: '#f1f5f9' });
+        return;
+    }
+
+    if (typeof docx === 'undefined') {
+        Swal.fire({ icon: 'error', title: 'Library Loading', text: 'MS Word export library is loading. Please try again in a few seconds.', background: '#1a1f35', color: '#f1f5f9' });
+        return;
+    }
+
+    Swal.fire({
+        title: 'Generating MS Word Document...',
+        text: 'Formatting official .docx document, please wait...',
+        allowOutsideClick: false,
+        background: '#1a1f35',
+        color: '#f1f5f9',
+        didOpen: () => Swal.showLoading()
+    });
+
+    try {
+        const {
+            Document, Paragraph, TextRun, Table, TableRow, TableCell,
+            AlignmentType, WidthType, BorderStyle, ShadingType,
+            VerticalAlign, PageNumber, Footer
+        } = docx;
+
+        let totalStudents = 0;
+        groups.forEach(g => totalStudents += (g.members || []).length);
+
+        const borderStyle = {
+            top: { style: BorderStyle.SINGLE, size: 6, color: '718096' },
+            bottom: { style: BorderStyle.SINGLE, size: 6, color: '718096' },
+            left: { style: BorderStyle.SINGLE, size: 6, color: '718096' },
+            right: { style: BorderStyle.SINGLE, size: 6, color: '718096' }
+        };
+
+        const cellMargins = { top: 100, bottom: 100, left: 140, right: 140 };
+        const tableRows = [];
+
+        // Header row
+        tableRows.push(
+            new TableRow({
+                tableHeader: true,
+                cantSplit: true,
+                children: [
+                    new TableCell({
+                        width: { size: 1400, type: WidthType.DXA },
+                        shading: { fill: '1B365D', type: ShadingType.CLEAR },
+                        margins: cellMargins,
+                        borders: borderStyle,
+                        verticalAlign: VerticalAlign.CENTER,
+                        children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: 'Group', bold: true, color: 'FFFFFF', size: 20, font: 'Arial' })] })]
+                    }),
+                    new TableCell({
+                        width: { size: 1700, type: WidthType.DXA },
+                        shading: { fill: '1B365D', type: ShadingType.CLEAR },
+                        margins: cellMargins,
+                        borders: borderStyle,
+                        verticalAlign: VerticalAlign.CENTER,
+                        children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: 'Role', bold: true, color: 'FFFFFF', size: 20, font: 'Arial' })] })]
+                    }),
+                    new TableCell({
+                        width: { size: 4400, type: WidthType.DXA },
+                        shading: { fill: '1B365D', type: ShadingType.CLEAR },
+                        margins: cellMargins,
+                        borders: borderStyle,
+                        verticalAlign: VerticalAlign.CENTER,
+                        children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: 'Student Name', bold: true, color: 'FFFFFF', size: 20, font: 'Arial' })] })]
+                    }),
+                    new TableCell({
+                        width: { size: 2100, type: WidthType.DXA },
+                        shading: { fill: '1B365D', type: ShadingType.CLEAR },
+                        margins: cellMargins,
+                        borders: borderStyle,
+                        verticalAlign: VerticalAlign.CENTER,
+                        children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: 'Reg No.', bold: true, color: 'FFFFFF', size: 20, font: 'Arial' })] })]
+                    })
+                ]
+            })
+        );
+
+        // Group rows
+        groups.forEach(group => {
+            const members = group.members || [];
+            let hasLeaderAssigned = false;
+            members.forEach((member, mIdx) => {
+                const isLeaderRole = member.role === 'Team Leader' || member.role === 'Individual';
+                const isLeader = group.type === 'individual' || (isLeaderRole && !hasLeaderAssigned);
+                if (isLeader) hasLeaderAssigned = true;
+
+                const cells = [];
+                if (mIdx === 0) {
+                    cells.push(new TableCell({
+                        rowSpan: members.length,
+                        width: { size: 1400, type: WidthType.DXA },
+                        margins: cellMargins,
+                        borders: borderStyle,
+                        verticalAlign: VerticalAlign.CENTER,
+                        children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: group.groupName, bold: true, size: 21, color: '000000', font: 'Arial' })] })]
+                    }));
+                }
+
+                cells.push(new TableCell({
+                    width: { size: 1700, type: WidthType.DXA },
+                    margins: cellMargins,
+                    borders: borderStyle,
+                    verticalAlign: VerticalAlign.CENTER,
+                    children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: isLeader ? 'Leader' : 'Member', bold: isLeader, size: 19, color: '000000', font: 'Arial' })] })]
+                }));
+
+                cells.push(new TableCell({
+                    width: { size: 4400, type: WidthType.DXA },
+                    margins: cellMargins,
+                    borders: borderStyle,
+                    verticalAlign: VerticalAlign.CENTER,
+                    children: [new Paragraph({ alignment: AlignmentType.LEFT, children: [new TextRun({ text: member.name, bold: isLeader, size: 19, color: '000000', font: 'Arial' })] })]
+                }));
+
+                cells.push(new TableCell({
+                    width: { size: 2100, type: WidthType.DXA },
+                    margins: cellMargins,
+                    borders: borderStyle,
+                    verticalAlign: VerticalAlign.CENTER,
+                    children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: member.regNo || '', size: 19, color: '000000', font: 'Arial' })] })]
+                }));
+
+                tableRows.push(new TableRow({
+                    cantSplit: true,
+                    children: cells
+                }));
+            });
+        });
+
+        const doc = new Document({
+            sections: [{
+                properties: {
+                    page: {
+                        margin: { top: 720, bottom: 720, left: 720, right: 720 }
+                    }
+                },
+                footers: {
+                    default: new Footer({
+                        children: [
+                            new Paragraph({
+                                alignment: AlignmentType.RIGHT,
+                                children: [
+                                    new TextRun({ text: 'Physics Lab Registration — Fall 2026 | Page ', size: 16, color: '718096', font: 'Arial' }),
+                                    new TextRun({ children: [PageNumber.CURRENT], size: 16, color: '718096', font: 'Arial' }),
+                                    new TextRun({ text: ' of ', size: 16, color: '718096', font: 'Arial' }),
+                                    new TextRun({ children: [PageNumber.TOTAL_PAGES], size: 16, color: '718096', font: 'Arial' })
+                                ]
+                            })
+                        ]
+                    })
+                },
+                children: [
+                    new Paragraph({
+                        alignment: AlignmentType.CENTER,
+                        spacing: { after: 40 },
+                        children: [new TextRun({ text: 'Ibadat International University Islamabad', bold: true, size: 34, color: '1B365D', font: 'Arial' })]
+                    }),
+                    new Paragraph({
+                        alignment: AlignmentType.CENTER,
+                        spacing: { after: 40 },
+                        children: [new TextRun({ text: 'Department of Software Engineering', bold: true, size: 24, color: '000000', font: 'Arial' })]
+                    }),
+                    new Paragraph({
+                        alignment: AlignmentType.CENTER,
+                        spacing: { after: 120 },
+                        children: [new TextRun({ text: 'Open-Ended Lab Project Groups', bold: true, size: 25, color: '000000', font: 'Arial' })]
+                    }),
+                    new Paragraph({
+                        spacing: { after: 40 },
+                        children: [
+                            new TextRun({ text: 'Course: ', bold: true, size: 19, color: '1B365D', font: 'Arial' }),
+                            new TextRun({ text: 'Applied Physics (BCS-6101) - Lab', size: 19, color: '1B365D', font: 'Arial' })
+                        ]
+                    }),
+                    new Paragraph({
+                        spacing: { after: 40 },
+                        children: [
+                            new TextRun({ text: 'Session / Semester / Section: ', bold: true, size: 19, color: '1B365D', font: 'Arial' }),
+                            new TextRun({ text: 'Fall 2026 | 1st | B (BS Software Engineering)', size: 19, color: '1B365D', font: 'Arial' })
+                        ]
+                    }),
+                    new Paragraph({
+                        spacing: { after: 40 },
+                        children: [
+                            new TextRun({ text: 'Instructor: ', bold: true, size: 19, color: '1B365D', font: 'Arial' }),
+                            new TextRun({ text: 'Engr. Jawad Sager, Junior Lecturer', size: 19, color: '1B365D', font: 'Arial' })
+                        ]
+                    }),
+                    new Paragraph({
+                        spacing: { after: 140 },
+                        children: [
+                            new TextRun({ text: 'Total: ', bold: true, size: 19, color: '1B365D', font: 'Arial' }),
+                            new TextRun({ text: totalStudents + ' students in ' + groups.length + ' groups', bold: true, size: 19, color: '1B365D', font: 'Arial' })
+                        ]
+                    }),
+                    new Table({
+                        width: { size: 9600, type: WidthType.DXA },
+                        rows: tableRows
+                    })
+                ]
+            }]
+        });
+
+        docx.Packer.toBlob(doc).then(blob => {
+            const fileName = `Physics_Lab_Groups_Official_${new Date().toISOString().slice(0, 10)}.docx`;
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = fileName;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            Swal.fire({ icon: 'success', title: 'Downloaded Word Document!', text: fileName, timer: 2000, showConfirmButton: false, background: '#1a1f35', color: '#f1f5f9' });
+        }).catch(err => {
+            Swal.fire({ icon: 'error', title: 'DOCX Error', text: err.message, background: '#1a1f35', color: '#f1f5f9' });
+        });
+    } catch (e) {
+        Swal.fire({ icon: 'error', title: 'Export Error', text: e.message, background: '#1a1f35', color: '#f1f5f9' });
+    }
 }
 
 function escapeHtml(str) {
